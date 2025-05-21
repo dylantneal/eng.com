@@ -1,1 +1,60 @@
 # eng.com
+
+1 Scope, intent and guiding principles
+The minimum-viable version of eng.com is conceived as a “learn → build → share → earn” loop for makers and engineers. Its launch scope is intentionally narrow so the whole product can be finished, shipped and monetised within six weeks, yet every screen, database column and API contract is laid out to expand gracefully into the long-term vision that includes real-time collaboration, a paid marketplace, competitive challenges and an engineering talent board. The overarching aim is to give any builder—student, hobbyist or professional—a zero-friction space to publish projects, fill knowledge gaps and receive revenue, while keeping first-year infrastructure spend under ten dollars a month. Every component is therefore chosen for the lowest possible effort today and the lowest possible migration cost tomorrow. 
+
+2 Four user-facing pillars of the MVP
+At launch the product presents four tightly focused experiences.
+
+Projects act as the personal workbench and public portfolio. A creator drags up to five files—anything from STEP and STL to ZIP archives, images or PDFs—into the browser, edits a Markdown README in a live preview, toggles Public or Private and presses Publish. The system instantly produces a shareable URL such as eng.com/projects/alex/drone-mk1, completing the viral loop.
+
+Gallery Feed shows an infinite Masonry-style wall of public projects, sortable by “Newest” or “Most Tipped.” This feed solves the classic empty-room problem, stimulates browsing and inspires newcomers to upload their own work.
+
+Mini Q&A offers a single-board question area where users post Markdown questions, attach tags, vote on answers and mark one answer “Accepted,” giving the responder a reputation bonus. This light community layer keeps help requests out of project comment threads and seeds a future full forum.
+
+Tip-Jar and Pro Upgrade are embedded revenue levers available everywhere. Any visitor can click “Tip this creator” and pay via Stripe Checkout; creators can click “Upgrade → Pro” and, for seven dollars a month, unlock private projects and a larger storage quota. Both flows use Stripe Connect so KYC, fraud checks and global payout routing are off-loaded from day one.
+
+3 A five-minute end-to-end user journey
+A typical newcomer sees a polished drone project in the feed, signs up with GitHub OAuth in ten seconds, creates a new project by dropping in drone.step and a README, hits Publish, shares the link in Discord, receives a five-dollar tip (net $4.50 after the platform’s ten-percent fee) and answers a friend’s comment—all within five minutes of arrival. The entire path is instrumented so each event (signup, publish, tip, comment) feeds Plausible analytics and can later drive growth experiments.
+
+4 Detailed module description
+Authentication and profiles rely on Auth.js for Google, GitHub and email magic links. A profile page displays avatar, bio, project list and lifetime tip totals, while a settings panel lets users change their handle, toggle the Tip-Jar and invoke a GDPR-compliant delete-account flow. 
+
+Projects workbench provides drag-and-drop upload (five files, one-hundred-megabyte quota on the free tier), a live Markdown editor, automatic versioning on each re-upload, a Public/Private visibility switch, a real-time comment thread powered by Supabase Realtime and lightweight reaction counters (👍 🎉 ❤). Every structural decision—blob version lists, markdown stored alongside the version pointer—anticipates future diffing and multi-cursor editing. 
+
+Gallery feed renders edge-cached Project Cards that show thumbnail, title, creator and cumulative tips. A thin filter bar lets visitors pick Newest, Most Tipped or personal bookmarks, while infinite scrolling uses cursor-based pagination and a thirty-second Vercel Edge cache to keep time-to-first-byte under one hundred milliseconds worldwide. 
+
+Mini Q&A stores each question as a specially typed row in the comments table, supports tag filtering, up-votes and reputation tallies and automatically awards a ✦ five-point bonus when an answer is accepted. That schema can later power a full Stack-Overflow-style forum without rewrite. 
+
+Payments begin with a Stripe Connect onboarding flow. Once complete, the Tip-Jar button appears on all of the creator’s projects, charging a configurable ten-percent platform fee. The Pro subscription is implemented as a Stripe Checkout session; a webhook flips the plan field to pro and removes private-project restrictions. If the subscription lapses, the platform converts private repositories to read-only until renewal, protecting revenue while preserving user data. 
+
+Admin console is a hidden route visible only to accounts flagged role=admin. It lists projects auto-flagged for size or suspicious activity and comments reported by users. A single “Hide” action sets is_hidden=true, removing the item from feeds instantly without data loss. 
+
+Cross-cutting non-visual concerns include strict MIME whitelisting, a one-hundred-megabyte cap per project, daily Supabase backups, a weekly manual export “belt-and-suspenders” copy, and automatic uptime checks that ping a /api/healthz route every minute. Heavy pages are cached with Incremental Static Regeneration, so reads hit Vercel’s edge and writes go straight to Supabase, keeping database load predictable.
+
+5 Runtime architecture and data flow
+From the browser, most CRUD operations call Supabase directly through @supabase/supabase-js. A Next.js API route is invoked only when a server-side secret is required (for example, signing Stripe webhooks or issuing pre-authorised storage URLs) or when an additional edge cache should sit in front of Supabase (the gallery feed is a prime case). Stripe webhooks post to /api/stripe/webhook, where signatures are verified before updating the payments table and the payer’s or payee’s plan. Database triggers then enqueue badges or send transactional emails, while Supabase Realtime broadcasts comment inserts so every open thread updates live without polling. No dedicated monolithic backend service exists in the MVP—lowering both cost and cognitive overhead—yet the boundary lines are clear enough that each route can be lifted into its own micro-service or container later. 
+
+6 Technology selections and rationale
+The single-repository codebase is a Next.js 14 application using the App Router, React 18, TailwindCSS, Auth.js and TypeScript. React Server Components fetch data at the edge and stream progressively, while the client side re-validates using useSWR. Only one Tailwind breakpoint is defined to keep design debt minimal; on mobile a floating action button surfaces “New Project” and “New Question.” On the server side Supabase provides Postgres 15, S3-compatible storage, JWT-based auth and WebSocket realtime channels, all running on the free tier. Stripe handles payments, Resend (or Postmark) sends email, Plausible records analytics, GitHub Actions drives CI and Vercel handles hosting and global edge distribution. All of these services expose industry-standard APIs so the stack is portable to any public cloud or Kubernetes cluster when traffic or compliance needs demand.
+
+7 Database, storage and access control model
+The relational schema centres on five tables: users, projects, versions, comments and payments. Each project may hold multiple version rows, each containing a JSONB array of file descriptors and a snapshot of the README. Comments reference projects and users, and payments record both tips and subscriptions with payer, payee, amount and type. Storage is split into public and private buckets; read access to the private bucket is denied to anonymous users but automatically granted to project owners on the Pro plan. Supabase row-level security enforces tenancy boundaries throughout, and storage policies mirror database visibility flags to avoid mismatches. 
+
+8 External integrations
+Beyond Supabase and Stripe, the MVP leans on Plausible for privacy-first analytics, Resend for mail delivery, GitHub + Vercel for CI and hosting and UptimeRobot for synthetic monitoring. None of these services carries a fixed monthly fee beyond minimal Fly.io credits to host Plausible, keeping the cash burn nearly flat until genuine traction arrives. 
+
+9 Security, privacy and regulatory posture
+Transport security is provided automatically by Vercel’s managed TLS and HSTS headers. All secrets live in environment variables, never in the repository. Auth cookies are HTTP-only JWTs, while optional MFA can piggy-back on OAuth providers’ 2-factor enforcement. Supabase row-level security prevents cross-tenant reads or writes; Next.js escapes output by default, and Markdown is sanitised with dompurify to block XSS. The platform never touches raw card data, relying on Stripe’s fully PCI-compliant Checkout and Customer Portal. GDPR baseline rights are covered through a simple SQL delete/export function, and a DMCA email link plus the Admin hide flow provide takedown capability.
+
+10 DevOps and continuous delivery pipeline
+A protected main branch drives production. Every pull request runs ESLint, TypeScript checks and unit tests in GitHub Actions, then builds a preview deployment at <branch>--eng-com.vercel.app. Merging to main triggers an atomic Vercel production deploy; rollbacks are a single click. SQL migrations are version-controlled in /supabase/migrations and applied automatically during CI with the Supabase CLI, but destructive operations are forbidden until after MVP. Vercel logs and edge timings supply performance metrics, and UptimeRobot watches the health-check every sixty seconds.
+
+11 Cost curve and scaling levers
+In the private-alpha phase the platform supports roughly one hundred monthly active users on free tiers and credits, costing five to ten dollars a month. At one thousand MAU the first paid upgrades—Supabase Pro and Vercel Pro—raise spend to roughly sixty dollars. Around ten thousand MAU the team would migrate blobs to Amazon S3 with Glacier lifecycle rules and move Postgres to Neon or RDS, reaching a cost band of one-to-three hundred dollars monthly. Beyond one hundred thousand users the front-end can be ported to Cloudflare Workers, the database sharded and a CDN layered in front of object storage, with anticipated infra exceeding one thousand dollars but scaling linearly. Each of these step-changes is supported by today’s API contracts, bucket layout and edge-cache strategy, so no large-scale refactor is required.
+
+12 Extensibility roadmap and open questions
+The MVP’s file-centric object model allows real-time multi-cursor editing to be added by layering Yjs or another CRDT library on top of existing Supabase Realtime channels. Competitive challenges need only a challenge_id column and a leaderboard query. A full marketplace reuses the Tip-Jar path, replacing the arbitrary “tip” amount with a fixed “listing price” field and enabling escrow splits. A mobile application can adopt the same REST endpoints and Supabase client from day one, while enterprise customers can be onboarded later through Auth0 or SAML adapters without altering the underlying JWT model. Remaining open questions include whether to generate thumbnails client-side or in serverless functions, which Markdown editor to adopt for the long term, when WebSocket traffic will outgrow the free Realtime tier, how to manage marketplace tax liability and whether EU data residency is needed early. Each decision is flagged for follow-up before scale forces the issue.
+
+Bottom line
+The architecture delivers a complete, lovable product in weeks on hobby-tier infrastructure, proves both willingness to pay and viral growth mechanics and, most critically, draws clear seams so every subsystem—UI, data store, payments, realtime layer—can be swapped out or horizontally scaled when enterprise requirements emerge. Nothing in the MVP is throw-away, and nothing locks the company into a single-vendor dead end.
