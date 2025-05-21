@@ -1,27 +1,27 @@
 import Link from 'next/link';
+import Button from '@/components/ui/Button';
 
 export default function Home() {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-24">
-      <h1 className="text-4xl font-bold">Welcome to eng.com 👋</h1>
+    <section className="flex flex-col items-center justify-center gap-6 py-24">
+      <h1 className="text-5xl font-bold tracking-tight text-center">
+        Publish, learn & earn as an
+        <span className="text-brand"> engineer</span>
+      </h1>
+
       <p className="max-w-xl text-center text-gray-600">
-        A zero-friction space to publish projects, fill knowledge gaps and earn revenue.
+        Drag-and-drop a project, get instant feedback and receive tips from a
+        global community of builders.
       </p>
 
       <div className="flex gap-4">
-        <Link
-          href="/gallery"
-          className="px-4 py-2 text-white bg-indigo-600 rounded hover:bg-indigo-700"
-        >
-          Browse projects
+        <Link href="/gallery">
+          <Button>Browse projects</Button>
         </Link>
-        <Link
-          href="/new"
-          className="px-4 py-2 text-white bg-gray-900 rounded"
-        >
-          Publish your first project
+        <Link href="/new">
+          <Button variant="secondary">Publish your first project</Button>
         </Link>
       </div>
-    </div>
+    </section>
   );
 } 

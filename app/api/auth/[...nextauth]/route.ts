@@ -1,24 +1,60 @@
 import NextAuth, { AuthOptions } from 'next-auth';
 import GitHubProvider from 'next-auth/providers/github';
 import GoogleProvider from 'next-auth/providers/google';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import { createClient } from '@supabase/supabase-js';
 import { SupabaseAdapter } from '@next-auth/supabase-adapter';
 
-// Create a tiny helper so we don't repeat the admin client code
+// —————————————————————————————————————————————
+// Helper that returns a service-role Supabase client
+// (never used in the browser!)
+// —————————————————————————————————————————————
 function supabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,   // service-role key – NEVER expose in client code!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!, // service-role key
   );
 }
 
+// —————————————————————————————————————————————
+// Next-Auth configuration
+// —————————————————————————————————————————————
 export const authOptions: AuthOptions = {
   adapter: SupabaseAdapter({
     url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
     secret: process.env.SUPABASE_SERVICE_ROLE_KEY!,
   }),
-
   providers: [
+    // ── Email + password login ───────────────────────────
+    CredentialsProvider({
+      name: 'Email',
+      credentials: {
+        email:    { label: 'Email',    type: 'email'    },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials.password) return null;
+
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,   // public anon key is fine for sign-in
+        );
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password,
+        });
+        if (error || !data.session || !data.user) return null;
+
+        return {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.user_metadata?.name ?? null,
+        };
+      },
+    }),
+
+    // ── OAuth providers ─────────────────────────────────
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
@@ -28,43 +64,27 @@ export const authOptions: AuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
-
+  session: { strategy: 'jwt' },
   callbacks: {
     /**
-     * 1. Run once on sign-in
-     *    – make sure we have a Supabase user and remember its UID
-     */
-    async jwt({ token, account }) {
-      if (account && !token.supabase_uid) {
-        const admin = supabaseAdmin();
-
-        // try to find (or create) a Supabase user by e-mail
-        const { data: { users } } = await admin.auth.admin.listUsers();
-        const supaUser =
-          users.find(u =>
-            u.email?.toLowerCase() === token.email?.toLowerCase()
-          ) ??
-          (await admin.auth.admin.createUser({
-            email: token.email!,
-            email_confirm: true,
-          })).data.user;
-
-        token.supabase_uid = supaUser?.id;
-      }
-      return token;
-    },
-
-    /**
-     * 2. Expose the Supabase UID in the browser session
+     * Inject the Supabase user id so the client can call
+     * `session.user.id` (used in ProjectUploader, etc.)
      */
     async session({ session, token }) {
-      if (token.supabase_uid) session.user.id = token.supabase_uid as string;
+      if (session.user && token.sub) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore – we augment the type in types/next-auth.d.ts
+        session.user.id = token.sub;
+      }
       return session;
     },
   },
-
-  pages: { signIn: '/signin' },
+  /**
+   * You can uncomment debug in local dev if needed
+   * debug: process.env.NODE_ENV === 'development',
+   */
 };
 
+// The App Router expects the handler to be exported as GET and POST
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST }; 
