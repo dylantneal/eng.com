@@ -4,22 +4,27 @@
     "@supabase/auth-helpers-nextjs": "^0.8.7",
     "@supabase/supabase-js": "^2.49.7",
     "clsx": "^2.1.1",
-    "next-auth": "^4.24.11"
+    "dompurify": "^3.0.6",
+    "next-auth": "^4.24.11",
+    "react-dropzone": "^14.2.3",
+    "react-markdown": "^9.0.0",
+    "remark-gfm": "^3.0.0"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.16",
     "@types/react": "^19.1.5",
     "@types/react-dom": "^19.1.5",
-    "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^3.4.17",
-    "typescript": "5.8.3",
-    "supabase": "^1.0.0",
-    "eslint": "^8.57.0",
-    "@typescript-eslint/parser": "^6.21.0",
+    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^8.57.0",
+    "postcss": "^8.5.3",
     "prettier": "^3.3.2",
-    "ts-node": "^10.9.1"
+    "supabase": "^1.0.0",
+    "tailwindcss": "^3.4.17",
+    "ts-node": "^10.9.1",
+    "typescript": "5.8.3"
   },
   "scripts": {
     "dev": "PORT=${PORT:-4001} next dev",
@@ -27,10 +32,10 @@
     "start": "PORT=${PORT:-4001} next start",
     "db:types": "npx supabase gen types typescript --project-id $(cat supabase/.temp/project-ref) --schema public > types/database.ts",
     "postinstall": "npm run db:types",
-    "lint":    "eslint --ext .ts,.tsx .",
-    "format":  "prettier --write .",
-    "type":    "tsc --noEmit",
-    "ci":      "npm run db:types && npm run lint && npm run type",
+    "lint": "eslint --ext .ts,.tsx .",
+    "format": "prettier --write .",
+    "type": "tsc --noEmit",
+    "ci": "npm run db:types && npm run lint && npm run type",
     "seed": "ts-node scripts/seed.ts"
   }
 }
