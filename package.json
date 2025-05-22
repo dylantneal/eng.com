@@ -3,10 +3,12 @@
     "@heroicons/react": "^2.2.0",
     "@next-auth/supabase-adapter": "^0.2.1",
     "@next/env": "^15.3.2",
+    "@stripe/stripe-js": "^7.3.0",
     "@supabase/auth-helpers-nextjs": "^0.8.7",
     "@supabase/supabase-js": "^2.49.8",
     "clsx": "^2.1.1",
     "dompurify": "^3.0.6",
+    "highlight.js": "^11.11.1",
     "next-auth": "^4.24.11",
     "react-dropzone": "^14.2.3",
     "react-markdown": "^9.0.0",
@@ -31,16 +33,16 @@
     "typescript": "5.8.3"
   },
   "scripts": {
-    "dev": "PORT=${PORT:-4001} next dev",
+    "dev": "next dev",
     "build": "next build",
-    "start": "PORT=${PORT:-4001} next start",
+    "start": "next start",
     "db:types": "npx supabase gen types typescript --project-id $(cat supabase/.temp/project-ref) --schema public > types/database.ts",
     "postinstall": "npm run db:types",
-    "lint": "eslint --ext .ts,.tsx .",
+    "lint": "next lint",
     "format": "prettier --write .",
     "type": "tsc --noEmit",
     "ci": "npm run db:types && npm run lint && npm run type",
-    "seed": "ts-node scripts/seed.ts",
+    "seed": "ts-node --transpile-only scripts/seed.ts",
     "gen:types": "supabase gen types typescript --schema public > types/supabase.ts"
   }
 }

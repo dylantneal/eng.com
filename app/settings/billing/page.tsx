@@ -1,16 +1,15 @@
 import Card from '@/components/ui/Card';
 
-export default async function BillingSettings() {
-  // In a real app you would create / fetch a portal session URL server-side
-  const portalUrl = process.env.STRIPE_PORTAL_URL ?? 'https://billing.stripe.com/test_123';
-
+export default function BillingTab() {
   return (
-    <Card className="p-0 overflow-hidden">
+    <div className="space-y-8">
+      <h1 className="text-xl font-semibold">Billing</h1>
+
+      {/* Stripe's Customer-Portal URL is returned by your backend; plug it in here */}
       <iframe
-        src={portalUrl}
-        className="w-full h-[720px] border-0"
-        title="Stripe Customer Portal"
+        src="/api/stripe/customer-portal"
+        className="w-full h-[800px] rounded border"
       />
-    </Card>
+    </div>
   );
 } 

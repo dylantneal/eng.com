@@ -4,11 +4,12 @@
     "paths": {
       "@/*": ["./*"],
       "@/types/*": ["types/*"],
-      "@/types/database": ["types/supabase"]
+      "@/types/database": ["types/database"],
+      "@/app/*": ["app/*"]
     },
     "jsx": "preserve",
     "esModuleInterop": true,
-    "target": "es5",
+    "target": "ES2020",
     "lib": [
       "DOM",
       "DOM.Iterable",
@@ -32,7 +33,8 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "downlevelIteration": true
   },
   "include": [
     "next-env.d.ts",

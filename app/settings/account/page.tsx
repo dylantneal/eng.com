@@ -1,16 +1,24 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import Card from '@/components/ui/Card';
+import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
 
-export default async function AccountSettings() {
-  const session = await getServerSession(authOptions);
+export default async function AccountTab() {
+  const supabase = createClient(cookies())
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   return (
-    <Card className="p-6 space-y-4">
-      <h2 className="font-semibold text-lg">Account</h2>
-      <p>Display name: <strong>{session?.user?.name ?? '—'}</strong></p>
-      <p>Email: <strong>{session?.user?.email}</strong></p>
-      {/* TODO: add form for handle / avatar / delete account */}
-    </Card>
-  );
+    <div className="space-y-8">
+      <h1 className="text-xl font-semibold">Account</h1>
+      <div>
+        <label className="block text-sm mb-1">Email</label>
+        <input
+          defaultValue={user?.email}
+          readOnly
+          className="w-full rounded border px-3 py-2 bg-muted/50"
+        />
+      </div>
+      {/* TODO: display-name + delete-account actions */}
+    </div>
+  )
 } 

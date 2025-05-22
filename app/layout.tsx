@@ -14,10 +14,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased font-sans">
+      <body
+        className="min-h-screen antialiased font-sans
+                   bg-rainbow bg-[length:400%_400%]
+                   animate-rainbow-drift animate-rainbow-hue"
+      >
         <Providers>
           <Navbar />
-          <main className="container px-4 mx-auto py-6">{children}</main>
+          <main className="max-w-screen-lg mx-auto px-4 py-8">{children}</main>
         </Providers>
       </body>
     </html>

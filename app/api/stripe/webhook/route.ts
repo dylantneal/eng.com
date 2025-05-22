@@ -6,10 +6,10 @@ import type Stripe from 'stripe';
 export const config = { runtime: 'nodejs' };              // raw body OK
 
 export async function POST(req: NextRequest) {
-  const sig  = req.headers.get('stripe-signature')!;
-  const body = Buffer.from(await req.arrayBuffer());
+  const body = await req.text();
+  const sig = req.headers.get('stripe-signature')!;
 
-  let event;
+  let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(
       body,
@@ -17,24 +17,24 @@ export async function POST(req: NextRequest) {
       process.env.STRIPE_WEBHOOK_SECRET!,
     );
   } catch (err) {
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid sig' }, { status: 400 });
   }
-
-  const supabase = supabaseServerAdmin();
 
   switch (event.type) {
     /* ───────── tips (one-off payment) ───────── */
     case 'checkout.session.completed': {
-      const s = event.data.object as Stripe.Checkout.Session;
-      if (s.mode === 'payment') {
-        await supabase.from('payments').insert({
-          stripe_payment_intent: s.payment_intent as string,
-          amount_cents: s.amount_total!,
-          type: 'tip',
-          // payer_id could be null for anonymous tips
-          project_id: s.metadata?.project_id,
-        });
-      }
+      const session = event.data.object as Stripe.Checkout.Session;
+      const metadata = session.metadata as any;
+
+      // persist payment row
+      await supabaseServerAdmin().from('payments').insert({
+        payer: metadata.payer_id ?? null,
+        payee: metadata.payee_id,
+        project_id: metadata.project_id,
+        amount_cents: session.amount_total!,
+        stripe_intent_id: session.payment_intent as string,
+        type: 'tip',
+      });
       break;
     }
 
@@ -45,11 +45,11 @@ export async function POST(req: NextRequest) {
       const userId = sub.metadata?.user_id;
       if (userId) {
         const plan = sub.status === 'active' ? 'pro' : 'free';
-        await supabase.from('profiles').update({ plan }).eq('id', userId);
+        await supabaseServerAdmin().from('profiles').update({ plan }).eq('id', userId);
       }
       break;
     }
   }
 
-  return NextResponse.json({ received: true });
+  return NextResponse.json({ ok: true });
 } 

@@ -1,15 +1,36 @@
-import Card from '@/components/ui/Card';
+import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
 
-export default function DeveloperSettings() {
-  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 16) + '…';
+export default async function DeveloperTab() {
+  const supabase = createClient(cookies())
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { data } = await supabase
+    .from('api_keys')
+    .select('service_key')
+    .eq('user_id', user!.id)
+    .single()
 
   return (
-    <Card className="p-6 space-y-4">
-      <h2 className="font-semibold text-lg">Developer</h2>
-      <p className="text-sm text-gray-600">
-        Supabase service key (read-only):
-      </p>
-      <pre className="bg-gray-100 p-3 rounded text-xs select-all">{svcKey}</pre>
-    </Card>
-  );
+    <div className="space-y-8">
+      <h1 className="text-xl font-semibold">Developer</h1>
+
+      <div className="relative">
+        <input
+          value={data?.service_key ?? ''}
+          readOnly
+          className="w-full rounded border px-3 py-2 bg-muted/50 pr-20"
+        />
+        <button
+          type="button"
+          onClick={() => navigator.clipboard.writeText(data?.service_key ?? '')}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-sm px-3 py-1 rounded bg-muted hover:bg-muted/70"
+        >
+          Copy
+        </button>
+      </div>
+    </div>
+  )
 } 

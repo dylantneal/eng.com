@@ -59,6 +59,7 @@
     "/projects/new/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
+      "static/css/app/projects/new/page.css",
       "static/chunks/app/projects/new/page.js"
     ],
     "/api/projects/route": [
@@ -85,6 +86,21 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/bookmarks/page.js"
+    ],
+    "/settings/billing/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/settings/billing/page.js"
+    ],
+    "/settings/notifications/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/settings/notifications/page.js"
+    ],
+    "/settings/developer/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/settings/developer/page.js"
     ]
   }
 }
