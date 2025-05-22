@@ -14,11 +14,7 @@ module.exports = {
     },
     extend: {
       colors: {
-        brand: {
-          DEFAULT: '#4f46e5',          // primary  ▶︎ indigo-600
-          emphasis: '#4338ca',         // hover    ▶︎ indigo-700
-          faint: '#eef2ff',            // subtle BG▶︎ indigo-50
-        },
+        brand: '#635BFF', // feel free to adjust
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

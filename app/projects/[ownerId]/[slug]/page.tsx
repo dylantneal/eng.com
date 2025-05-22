@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabaseServer } from '@/lib/supabase/server';
 import CommentThread from '@/components/CommentThread';
+import TipJarButton from '@/components/TipJarButton';
 import { Database } from '@/types/database';
 
 interface Props {
@@ -68,6 +69,12 @@ export default async function ProjectPage({ params }: Props) {
 
       {/* comments */}
       <CommentThread projectId={proj.id} />
+
+      {/* Tip-jar */}
+      {/* (hide if viewer is the owner) */}
+      {proj.id !== params.ownerId && (
+        <TipJarButton projectId={proj.id} />
+      )}
     </article>
   );
 } 

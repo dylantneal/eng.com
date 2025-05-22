@@ -1,4 +1,4 @@
-import NextAuth, { AuthOptions } from 'next-auth';
+import NextAuth, { type NextAuthOptions } from 'next-auth';
 import GitHubProvider from 'next-auth/providers/github';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
@@ -16,14 +16,19 @@ function supabaseAdmin() {
   );
 }
 
-// —————————————————————————————————————————————
-// Next-Auth configuration
-// —————————————————————————————————————————————
-export const authOptions: AuthOptions = {
-  adapter: SupabaseAdapter({
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    secret: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  }),
+const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey  =
+  process.env.SUPABASE_SERVICE_ROLE_KEY     // <── preferred (server-side)
+  ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; // dev fallback
+
+/** ── Auth.js / Next-Auth configuration ─────────────────────── */
+export const authOptions: NextAuthOptions = {
+  /* build the adapter only if both pieces exist */
+  adapter:
+    supabaseUrl && supabaseKey
+      ? SupabaseAdapter({ url: supabaseUrl, secret: supabaseKey })
+      : undefined,
+  secret: process.env.NEXTAUTH_SECRET!,
   providers: [
     // ── Email + password login ───────────────────────────
     CredentialsProvider({
@@ -56,11 +61,11 @@ export const authOptions: AuthOptions = {
 
     // ── OAuth providers ─────────────────────────────────
     GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientId:     process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
     }),
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientId:     process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
@@ -71,11 +76,7 @@ export const authOptions: AuthOptions = {
      * `session.user.id` (used in ProjectUploader, etc.)
      */
     async session({ session, token }) {
-      if (session.user && token.sub) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore – we augment the type in types/next-auth.d.ts
-        session.user.id = token.sub;
-      }
+      if (token.sub) (session.user as any).id = token.sub;
       return session;
     },
   },
