@@ -2,7 +2,14 @@
 
 import { SessionProvider } from 'next-auth/react';
 import { PropsWithChildren } from 'react';
+import CommandPaletteProvider from '@/components/CommandPalette';
 
 export default function Providers({ children }: PropsWithChildren) {
-  return <SessionProvider>{children}</SessionProvider>;
+  return (
+    <CommandPaletteProvider>
+      <SessionProvider>
+        {children}
+      </SessionProvider>
+    </CommandPaletteProvider>
+  );
 } 

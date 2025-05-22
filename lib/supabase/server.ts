@@ -1,6 +1,12 @@
 import { cookies } from 'next/headers';
-import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
-import { Database } from '@/types/database';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import type { Database } from '@/types/supabase';
 
 export const supabaseServer = () =>
-  createServerSupabaseClient<Database>({ cookies }); 
+  createServerComponentClient<Database>(
+    { cookies },
+    {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    },
+  ); 

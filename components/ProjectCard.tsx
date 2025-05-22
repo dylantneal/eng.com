@@ -13,7 +13,7 @@ type Props = {
 
 export default function ProjectCard({ project }: Props) {
   return (
-    <Card className="break-inside-avoid">
+    <Card className="break-inside-avoid relative group">
       <Link href="#">
         <img
           src={project.thumb}
@@ -28,6 +28,23 @@ export default function ProjectCard({ project }: Props) {
           </p>
         </div>
       </Link>
+
+      {/* quick actions */}
+      <div className="absolute inset-0 flex items-start justify-end p-2 opacity-0 group-hover:opacity-100 transition">
+        <button title="Bookmark" className="icon-btn" onClick={bookmark}>
+          🔖
+        </button>
+        <button title="Copy link" className="icon-btn" onClick={copyLink}>
+          🔗
+        </button>
+        <button title="Tip" className="icon-btn" onClick={tip}>
+          💸
+        </button>
+      </div>
     </Card>
   );
-} 
+}
+
+function bookmark() { /* TODO */ }
+function copyLink()  { navigator.clipboard.writeText(window.location.href); }
+function tip()       { /* open stripe checkout */ } 

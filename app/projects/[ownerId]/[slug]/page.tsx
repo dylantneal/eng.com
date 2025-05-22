@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { supabaseServer } from '@/lib/supabase/server';
 import CommentThread from '@/components/CommentThread';
 import TipJarButton from '@/components/TipJarButton';
-import { Database } from '@/types/database';
+import type { Database } from '@/types/supabase';
 
 interface Props {
   params: { ownerId: string; slug: string };

@@ -17,12 +17,21 @@ export default function Navbar() {
 
         {session ? (
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-sm font-medium">
-              Dashboard
+            <Link href="/home" className="text-sm font-medium">
+              Home
+            </Link>
+            <Link href="/bookmarks" className="text-sm font-medium">
+              Bookmarks
+            </Link>
+            <Link href="/settings/account" className="text-sm font-medium">
+              Settings
+            </Link>
+            <Link href="/projects/new" className="bg-brand text-white px-3 py-1 rounded">
+              New Project
             </Link>
             <Button
               size="sm"
-              onClick={() => signOut()}
+              onClick={() => signOut({ callbackUrl: '/' })}
               className="whitespace-nowrap"
             >
               Sign out

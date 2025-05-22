@@ -58,4 +58,8 @@ body::before {
   background-size: 400% 400%;
   animation: gradient 12s ease-in-out infinite;
   filter: blur(100px) saturate(160%);
+}
+
+.icon-btn {
+  @apply w-8 h-8 flex items-center justify-center rounded-full bg-white/80 hover:bg-white shadow text-sm;
 } 

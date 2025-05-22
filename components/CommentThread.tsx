@@ -25,10 +25,13 @@ export default function CommentThread({ projectId }: { projectId: string }) {
       .channel('comments')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'comments', filter: `project_id=eq.${projectId}` },
-        (payload) => {
-          setComments((c) => [payload.new as any, ...c]);
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'comments',
+          filter: `project_id=eq.${projectId}`,
         },
+        (payload) => setComments((c) => [payload.new as any, ...c]),
       )
       .subscribe();
 

@@ -8,6 +8,9 @@ import {
   LockClosedIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
+import { getServerSession } from 'next-auth';
+import { authOptions }        from './api/auth/[...nextauth]/route';
+import { redirect }           from 'next/navigation';
 
 /* ----------  Decorative helper  ---------- */
 function Blob(props: { className?: string }) {
@@ -18,7 +21,10 @@ function Blob(props: { className?: string }) {
   );
 }
 
-export default function Landing() {
+export default async function Landing() {
+  const session = await getServerSession(authOptions);
+  if (session) redirect('/home');
+
   return (
     <main>
       {/* ----------  HERO  ---------- */}
