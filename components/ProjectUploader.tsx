@@ -153,7 +153,7 @@ export default function ProjectUploader() {
         />
         <div className="prose max-w-none border rounded p-3 overflow-y-auto h-64">
           <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
+            remarkPlugins={[remarkGfm as any]}
             components={{
               /* sanitise every element */
               p: ({ node, ...props }) => (

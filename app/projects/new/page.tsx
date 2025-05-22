@@ -59,21 +59,11 @@ export default async function NewProjectPage() {
       .select()
       .single()
 
-    const { data: version } = await supabase
-      .from('project_versions')
-      .insert({
-        project_id: project.id,
-        version_no: 1,
-        readme_md: readme,
-        files: filesDescriptor,
-      })
-      .select()
-      .single()
-
-    await supabase
-      .from('projects')
-      .update({ current_version: version.id })
-      .eq('id', project.id)
+    await supabase.from('project_versions').insert({
+      project_id: project.id,
+      files: filesDescriptor,
+      changelog: readme,
+    })
 
     revalidatePath('/gallery')
     redirect(`/projects/${user.user?.user_metadata.username}/${slug}`)
