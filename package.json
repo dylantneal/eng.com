@@ -13,11 +13,24 @@
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
-    "typescript": "5.8.3"
+    "typescript": "5.8.3",
+    "supabase": "^1.0.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "prettier": "^3.3.2",
+    "ts-node": "^10.9.1"
   },
   "scripts": {
     "dev": "PORT=${PORT:-4001} next dev",
     "build": "next build",
-    "start": "PORT=${PORT:-4001} next start"
+    "start": "PORT=${PORT:-4001} next start",
+    "db:types": "npx supabase gen types typescript --project-id $(cat supabase/.temp/project-ref) --schema public > types/database.ts",
+    "postinstall": "npm run db:types",
+    "lint":    "eslint --ext .ts,.tsx .",
+    "format":  "prettier --write .",
+    "type":    "tsc --noEmit",
+    "ci":      "npm run db:types && npm run lint && npm run type",
+    "seed": "ts-node scripts/seed.ts"
   }
 }
