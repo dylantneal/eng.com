@@ -1,34 +1,71 @@
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase-server';
 import Image from 'next/image';
+import clsx from 'clsx';
 
 export const revalidate = 30;
 
-export default async function GalleryPage() {
+export default async function GalleryPage({
+  searchParams,
+}: {
+  searchParams?: { sort?: string }
+}) {
+  const sortIsTop = searchParams?.sort === 'top';
+  const orderColumn = sortIsTop ? 'tips_cents' : 'created_at';
+
   const supabase = createClient();
 
-  const { data: projects } = await supabase
-    .from('projects')
-    .select('id, title, slug, owner:owner(username), project_versions(files)')
-    .eq('is_public', true)
-    .order('created_at', { ascending: false })
-    .limit(40);
+  const { data: projects, error } = await supabase
+    .from('project_feed')
+    .select(
+      `
+        id,
+        title,
+        slug,
+        username,
+        thumb_url,
+        tips_cents,
+        created_at
+      `
+    )
+    .order(orderColumn, { ascending: false });
+
+  if (error) throw error;
 
   return (
-    <div className="columns-1 md:columns-3 gap-4 p-4 transition-opacity animate-in fade-in">
-      {(projects ?? []).map((p: any) => {
-        const thumb = p.project_versions[0]?.files?.[0];
-        return (
+    <section className="mx-auto w-full max-w-5xl px-4">
+      <nav className="mb-6 flex gap-4 text-sm font-medium">
+        {[
+          { label: 'Latest',   href: '/gallery',            active: !sortIsTop },
+          { label: 'Most Tipped', href: '/gallery?sort=top', active:  sortIsTop },
+        ].map(tab => (
           <Link
-            key={p.id}
-            href={`/projects/${p.owner.username}/${p.slug}`}
+            key={tab.label}
+            href={tab.href}
+            className={clsx(
+              'rounded px-2 py-1 transition',
+              tab.active
+                ? 'bg-neutral-900 text-white'
+                : 'text-neutral-500 hover:text-neutral-900'
+            )}
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </nav>
+
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {projects?.map(project => (
+          <Link
+            key={project.id}
+            href={`/projects/${project.username}/${project.slug}`}
             className="break-inside-avoid mb-4 block border rounded overflow-hidden shadow-sm
                        transition-shadow hover:shadow-lg bg-white/50 backdrop-blur"
           >
-            {thumb ? (
+            {project.thumb_url ? (
               <Image
-                src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${thumb.path}`}
-                alt={p.title}
+                src={project.thumb_url}
+                alt={project.title}
                 width={400}
                 height={300}
                 className="w-full object-cover"
@@ -39,12 +76,12 @@ export default async function GalleryPage() {
               </div>
             )}
             <div className="p-3">
-              <h3 className="font-semibold">{p.title}</h3>
-              <p className="text-xs text-gray-500">@{p.owner.username}</p>
+              <h3 className="font-semibold">{project.title}</h3>
+              <p className="text-xs text-gray-500">@{project.username}</p>
             </div>
           </Link>
-        );
-      })}
-    </div>
+        ))}
+      </div>
+    </section>
   );
 } 
