@@ -13,8 +13,7 @@ html {
 }
 
 body {
-  @apply text-gray-900 antialiased selection:bg-brand selection:text-white;
-  background-color: transparent; /* let the global gradient show through */
+  @apply text-gray-900 antialiased selection:bg-brand selection:text-white bg-gray-50;
 }
 
 /* Example global styles */
@@ -34,31 +33,7 @@ a {
   box-sizing: border-box;
 } */
 
-/* 🔹 full-page animated gradient backdrop */
-@keyframes gradient {
-  0%   { background-position:   0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position:   0% 50%; }
-}
-
-/* sits behind everything, covers the whole viewport */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -10;                      /* behind all content */
-  background: linear-gradient(
-    120deg,
-    #c7d2fe 0%,    /* indigo-200  */
-    #a5b4fc 25%,   /* indigo-300  */
-    #f0abfc 50%,   /* fuchsia-300 */
-    #f9a8d4 75%,   /* pink-300    */
-    #c7d2fe 100%
-  );
-  background-size: 400% 400%;
-  animation: gradient 12s ease-in-out infinite;
-  filter: blur(100px) saturate(160%);
-}
+/* Clean background for professional look */
 
 .icon-btn {
   @apply w-8 h-8 flex items-center justify-center rounded-full bg-white/80 hover:bg-white shadow text-sm;
