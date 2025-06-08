@@ -13,19 +13,32 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-  const { data, error } = await supabase
+  const { data: project, error: insertError } = await supabase
     .from('projects')
     .insert({
       owner_id: session.user.id,
       title: body.title ?? 'Untitled project',
-      files: body.files,
-      readme: '# New project\n\nStart writing…',
-      is_public: true,
-      version: '0.1.0',
+      slug: body.slug,
+      is_public: body.is_public ?? true,
     })
     .select('id')
     .single();
 
-  if (error) return new Response(error.message, { status: 500 });
-  return Response.json({ id: data.id });
+  if (insertError || !project) {
+    return new Response(insertError?.message ?? 'Could not create project', { status: 500 });
+  }
+
+  const { error: versionError } = await supabase
+    .from('project_versions')
+    .insert({
+      project_id: project.id,
+      readme_md: body.readme ?? '# New project\n\nStart writing…',
+      files: body.files ?? [],
+    });
+
+  if (versionError) {
+    return new Response(versionError.message, { status: 500 });
+  }
+
+  return Response.json({ id: project.id });
 } 

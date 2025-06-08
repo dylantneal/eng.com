@@ -1,0 +1,3 @@
+-- Logic from this migration has been moved to 20240523000000_prepare_profiles_for_qa.sql
+-- This file is kept to ensure migration history consistency if it was already applied.
+-- No operations needed here. 

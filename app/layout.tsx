@@ -12,6 +12,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Add error boundary logging
+  console.log("=== Layout rendering started ===");
+  
   return (
     <html lang="en">
       <body

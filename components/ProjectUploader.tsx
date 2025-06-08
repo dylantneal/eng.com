@@ -85,19 +85,19 @@ export default function ProjectUploader() {
     await Promise.all(
       files.map((file) =>
         supabase.storage
-          .from('projects')
+          .from(isPublic ? 'projects' : 'projects-private')
           .upload(`${project.id}/${file.name}`, file, { cacheControl: '3600' }),
       ),
     );
 
     /* 3 ─ initial version */
-    await supabase.from('versions').insert({
+    await supabase.from('project_versions').insert({
       project_id: project.id,
       readme,
       files: files.map((f) => ({ name: f.name, size: f.size, type: f.type })),
     });
 
-    router.push(`/projects/${session.user.id}/${slug}`);
+    router.push(`/projects/${project.slug}`);
   }
 
   /* ----------  UI  --------------------------------------------- */

@@ -1,21 +1,19 @@
 /* Server component – gate the uploader behind authentication */
-import { createClient } from '@/utils/supabase-server'
+import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import FileUpload from '@/app/components/file-upload'
-import MarkdownEditor from '@/app/components/markdown-editor'
-import { useState } from 'react'
+import NewProjectForm from '@/app/components/new-project-form'
 
 export const metadata = { title: 'New Project — eng.com' }
 
 export default async function NewProjectPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: user } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   async function action(formData: FormData) {
     'use server'
-    const supabase = createClient()
+    const supabase = await createClient()
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -36,7 +34,7 @@ export default async function NewProjectPage() {
     for (const file of formData.getAll('files') as File[]) {
       const path = `${session.user.id}/${slug}/${Date.now()}-${file.name}`
       const { error } = await supabase.storage
-        .from(isPublic ? 'public' : 'private')
+        .from(isPublic ? 'projects' : 'projects-private')
         .upload(path, file, { contentType: file.type })
       if (error) throw error
       filesDescriptor.push({
@@ -59,40 +57,17 @@ export default async function NewProjectPage() {
       .select()
       .single()
 
-    await supabase.from('project_versions').insert({
-      project_id: project.id,
-      files: filesDescriptor,
-      changelog: readme,
-    })
+    if (project) {
+      await supabase.from('versions').insert({
+        project_id: project.id,
+        files: filesDescriptor,
+        readme_md: readme,
+      })
+    }
 
     revalidatePath('/gallery')
     redirect(`/projects/${user.user?.user_metadata.username}/${slug}`)
   }
 
-  return (
-    <form action={action} className="space-y-6">
-      <input
-        name="title"
-        required
-        placeholder="Project title"
-        className="input input-lg w-full"
-      />
-
-      <FileUpload />
-
-      <MarkdownEditor
-        value=""
-        onChange={() => {
-          /* handled in client component, submitted through hidden textarea */
-        }}
-      />
-      <textarea name="readme" className="hidden" />
-
-      <label className="flex items-center gap-2">
-        <input type="checkbox" name="public" defaultChecked /> Public
-      </label>
-
-      <button className="btn btn-primary w-full">Publish</button>
-    </form>
-  )
+  return <NewProjectForm action={action} />
 } 

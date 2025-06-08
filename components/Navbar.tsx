@@ -1,13 +1,28 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import Button from '@/components/ui/Button';
+import { useEffect, useState } from 'react';
+import { supabaseBrowser } from '@/lib/supabase/client';
 
 export default function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+
+  /* ── fetch viewer's handle for /u/<handle> route ───────── */
+  const [profile, setProfile] = useState<{ handle: string; avatar_url: string | null } | null>(null);
+  useEffect(() => {
+    if (!session?.user.id) return;
+    supabaseBrowser
+      .from('profiles')
+      .select('handle, avatar_url')
+      .eq('id', session.user.id)
+      .single()
+      .then(({ data }) => setProfile(data ?? null));
+  }, [session]);
 
   return (
     <nav
@@ -49,6 +64,21 @@ export default function Navbar() {
             >
               New Project
             </Link>
+            {profile && (
+              <Link
+                href={`/u/${profile.handle}`}
+                className="flex items-center gap-2 rounded hover:opacity-80 transition"
+              >
+                <Image
+                  src={profile.avatar_url ?? `https://robohash.org/${session!.user.id}`}
+                  alt="Me"
+                  width={28}
+                  height={28}
+                  className="h-7 w-7 rounded-full object-cover"
+                />
+                <span className="hidden md:inline text-sm">Profile</span>
+              </Link>
+            )}
             <Button
               size="sm"
               onClick={() => signOut({ callbackUrl: '/' })}

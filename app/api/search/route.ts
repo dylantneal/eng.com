@@ -12,15 +12,15 @@ export async function GET(req: NextRequest) {
 
   const fuzzy = `%${q}%`;
 
-  const [projects, users, questions] = await Promise.all([
-    supabase.from('projects').select('id,title,thumb,owner_id').ilike('title', fuzzy).limit(5),
-    supabase.from('users').select('id,username,avatar_url').ilike('username', fuzzy).limit(5),
-    supabase.from('questions').select('id,title').ilike('title', fuzzy).limit(5),
+  const [projectsRes, usersRes, questionsRes] = await Promise.all([
+    supabase.from('projects').select('id,title,thumb_path,owner_id').ilike('title', fuzzy).limit(5),
+    supabase.from('profiles').select('id,handle,avatar_url').ilike('handle', fuzzy).limit(5),
+    supabase.from('comments').select('id,body').eq('kind', 'question').ilike('body', fuzzy).limit(5),
   ]);
 
   return Response.json({
-    projects:  projects.data ?? [],
-    users:     users.data    ?? [],
-    questions: questions.data?? [],
+    projects:  projectsRes.data ?? [],
+    users:     usersRes.data?.map(u => ({ ...u, username: u.handle })) ?? [],
+    questions: questionsRes.data?.map(q => ({ id: q.id, title: q.body })) ?? [],
   });
 } 

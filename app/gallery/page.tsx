@@ -15,22 +15,36 @@ export default async function GalleryPage({
 
   const supabase = createClient();
 
-  const { data: projects, error } = await supabase
+  const { data: rawProjects, error } = await supabase
     .from('project_feed')
     .select(
       `
         id,
         title,
         slug,
-        username,
-        thumb_url,
+        handle,
+        thumb,
         tips_cents,
         created_at
       `
     )
     .order(orderColumn, { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    console.error("Gallery error:", JSON.stringify(error, null, 2));
+    throw error;
+  }
+
+  const projects = rawProjects?.map(p => ({
+    ...p,
+    // If thumb is already a full URL, use it; if it's a path, construct the URL
+    thumb_url: p.thumb?.startsWith('http') 
+      ? p.thumb 
+      : p.thumb
+        ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/projects/${p.thumb}`
+        : `https://picsum.photos/seed/${p.id}/480/360`,
+    username: p.handle,
+  })) || [];
 
   return (
     <section className="mx-auto w-full max-w-5xl px-4">

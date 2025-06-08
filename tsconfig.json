@@ -5,7 +5,9 @@
       "@/*": ["./*"],
       "@/types/*": ["types/*"],
       "@/types/database": ["types/database"],
-      "@/app/*": ["app/*"]
+      "@/app/*": ["app/*"],
+      "@/components/*": ["components/*"],
+      "@/utils/*": ["utils/*"]
     },
     "jsx": "preserve",
     "esModuleInterop": true,

@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const filter = searchParams.get('filter') ?? 'following';
   const cursor = searchParams.get('cursor') ?? null;
+  const cursorTipsParam = searchParams.get('cursorTips');
+  const pageSize = 12;
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,12 +28,33 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from('projects')
     .select('*')
-    .limit(12)
-    .order('created_at', { ascending: false });
+    .limit(pageSize);
 
-  if (filter === 'top')      query = query.order('tips', { ascending: false });
+  if (filter === 'top') {
+    query = query.order('tips_cents', { ascending: false });
+  }
+  query = query.order('created_at', { ascending: false }).order('id', { ascending: false });
 
-  if (cursor) query = query.gt('id', cursor);  // naïve cursor by id
+  if (cursor) {
+    const [lastCursorCreatedAt, lastCursorId] = cursor.split('_');
+    if (filter === 'top') {
+      const lastCursorTips = parseFloat(cursorTipsParam || '0');
+      query = query.or(
+        [
+          `tips_cents.lt.${lastCursorTips}`,
+          `and(tips_cents.eq.${lastCursorTips},created_at.lt.${lastCursorCreatedAt})`,
+          `and(tips_cents.eq.${lastCursorTips},created_at.eq.${lastCursorCreatedAt},id.lt.${lastCursorId})`,
+        ].join(',')
+      );
+    } else {
+      query = query.or(
+        [
+          `created_at.lt.${lastCursorCreatedAt}`,
+          `and(created_at.eq.${lastCursorCreatedAt},id.lt.${lastCursorId})`,
+        ].join(',')
+      );
+    }
+  }
 
   /* ——— bookmarks ——— */
   if (filter === 'bookmarks') {
@@ -64,9 +87,19 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query;
   if (error) return new Response(error.message, { status: 500 });
 
-  const last = data.at(-1);
+  let nextCursor = null;
+  let nextCursorTips: number | null = null;
+  if (data && data.length === pageSize) {
+    const lastItem = data[data.length - 1];
+    nextCursor = `${lastItem.created_at}_${lastItem.id}`;
+    if (filter === 'top') {
+      nextCursorTips = lastItem.tips_cents;
+    }
+  }
+
   return Response.json({
     items: data,
-    nextCursor: last ? last.id : null,
+    nextCursor,
+    nextCursorTips,
   });
 } 

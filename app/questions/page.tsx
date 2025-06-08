@@ -1,18 +1,24 @@
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase-server';
+import Card from '@/app/components/ui/Card';
+import EmptyState from '@/app/components/ui/EmptyState';
+import { createClient } from '@/lib/supabase/server';
+import { notFound } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';   // always fresh
 
-type Search = { cursor?: string; sort?: 'top' | 'newest' };
+type Search = {
+  sort?: string;
+  cursor?: string;
+};
 
 export default async function QuestionsPage({ searchParams }: { searchParams: Search }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const sort   = searchParams.sort === 'top' ? 'top' : 'newest';
   const limit  = 20;
 
   let query = supabase
     .from('comments')
-    .select('id, content, upvotes, created_at, profiles(username)')
+    .select('id, body, upvotes, created_at, profiles(handle)')
     .eq('kind', 'question');
 
   query = sort === 'top'
@@ -20,34 +26,43 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Se
     : query.order('created_at', { ascending: false });
 
   if (searchParams.cursor) {
-    query = sort === 'top'
-      ? query.lt('upvotes', searchParams.cursor)
-      : query.lt('created_at', searchParams.cursor);
+    if (sort === 'top') {
+      const numericCursor = parseInt(searchParams.cursor, 10);
+      if (!isNaN(numericCursor)) {
+        query = query.lt('upvotes', numericCursor);
+      } else {
+        console.warn('Invalid numeric cursor for upvotes sort:', searchParams.cursor);
+      }
+    } else {
+      query = query.lt('created_at', searchParams.cursor);
+    }
   }
 
   const { data, error } = await query.limit(limit);
-  if (error) console.error(error);
+  if (error) {
+    console.error('Supabase query error:', error.message, error.details, error.hint);
+  }
 
   // flatten `profiles` from array → single object
   const questions = (data ?? []).map(q => ({
     ...q,
-    profiles: q.profiles?.[0] ?? null            // take first profile or null
+    profiles: Array.isArray(q.profiles) ? q.profiles[0] : q.profiles ?? null
   })) as Array<{
     id: string;
-    content: string;
+    body: string;
     upvotes: number;
     created_at: string;
-    profiles: { username: string } | null;
+    profiles: { handle: string } | null;
   }>;
 
   const nextCursor = questions.length === limit
     ? (sort === 'top'
-        ? questions[questions.length - 1].upvotes
+        ? questions[questions.length - 1].upvotes.toString()
         : questions[questions.length - 1].created_at)
     : undefined;
 
   return (
-    <main className="max-w-3xl mx-auto p-6">
+    <main className="max-w-2xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Questions</h1>
 
       <nav className="flex gap-4 mb-6">
@@ -57,18 +72,22 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Se
 
       <ul className="space-y-6">
         {questions.map(q => (
-          <li key={q.id} className="border p-4 rounded">
-            <Link href={`/questions/${q.id}`} className="block hover:underline">
-              <h2 className="text-lg font-medium mb-1">
-                {q.content.slice(0, 120)}{q.content.length > 120 && '…'}
-              </h2>
-            </Link>
-            <p className="text-sm text-gray-500">
-              {q.upvotes} ▲ • {q.profiles?.username} • {new Date(q.created_at).toLocaleDateString()}
-            </p>
-          </li>
+          <Card key={q.id}>
+            <div className="p-4">
+              <Link href={`/questions/${q.id}`} className="block hover:underline">
+                <h2 className="text-lg font-medium mb-1">
+                  {q.body.slice(0, 120)}{q.body.length > 120 && '…'}
+                </h2>
+              </Link>
+              <p className="text-sm text-gray-500">
+                {q.upvotes} ▲ • {q.profiles?.handle} • {new Date(q.created_at).toLocaleDateString()}
+              </p>
+            </div>
+          </Card>
         ))}
       </ul>
+
+      {questions.length === 0 && <EmptyState label="Nothing to show yet." />}
 
       {nextCursor && (
         <Link

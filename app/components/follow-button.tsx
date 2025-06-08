@@ -1,39 +1,42 @@
 'use client';
 
-import { useOptimistic, useTransition } from 'react';
-import { toggleFollow } from '@/app/server/actions/toggle-follow';
-
-type Props = {
-  targetId: string;          // profile we're (un)following
-  initialState: boolean;
-  className?: string;
-};
+import { useState } from 'react';
+import clsx from 'clsx';
 
 export default function FollowButton({
   targetId,
   initialState,
-  className,
-}: Props) {
-  const [optimistic, setOptimistic] = useOptimistic(initialState);
-  const [pending, start] = useTransition();
+}: {
+  targetId: string;
+  initialState: boolean;
+}) {
+  const [isFollowing, setFollowing] = useState(initialState);
+  const [loading, setLoading]       = useState(false);
+
+  async function toggle() {
+    setLoading(true);
+    const res = await fetch('/api/follow', {
+      method: isFollowing ? 'DELETE' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetId }),
+    });
+
+    if (res.ok) setFollowing(!isFollowing);
+    setLoading(false);
+  }
 
   return (
-    <form
-      action={async () => {
-        start(async () => {
-          setOptimistic(!optimistic);          // 🔮 optimistic swap
-          await toggleFollow(targetId);        // 🗄️ server action
-        });
-      }}
-      className={className}
+    <button
+      onClick={toggle}
+      disabled={loading}
+      className={clsx(
+        'rounded px-4 py-2 text-sm font-medium transition',
+        isFollowing
+          ? 'bg-gray-200 hover:bg-gray-300'
+          : 'bg-indigo-600 text-white hover:bg-indigo-700'
+      )}
     >
-      <button
-        type="submit"
-        disabled={pending}
-        className={`btn ${optimistic ? 'btn-secondary' : 'btn-primary'}`}
-      >
-        {optimistic ? 'Following' : 'Follow'}
-      </button>
-    </form>
+      {loading ? '…' : isFollowing ? 'Following' : 'Follow'}
+    </button>
   );
 } 

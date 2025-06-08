@@ -1,32 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route';
-import { supabaseServerAdmin } from '@/lib/supabase/server-admin';
+import { createClient } from '@/utils/supabase-server';
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Unauth' }, { status: 401 });
+  const { targetId } = await req.json();
+  const supabase     = createClient();
 
-  const { followeeId } = await req.json();
-  if (!followeeId) return NextResponse.json({ error: 'followeeId required' }, { status: 400 });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'auth' }, { status: 401 });
 
-  const supabase = supabaseServerAdmin();
+  const { error } = await supabase.from('follows').insert({
+    follower_id:  user.id,
+    following_id: targetId,
+  });
 
-  /* does it already exist? */
-  const { data: row } = await supabase
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(req: NextRequest) {
+  const { targetId } = await req.json();
+  const supabase     = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'auth' }, { status: 401 });
+
+  const { error } = await supabase
     .from('follows')
-    .select('id')
-    .eq('follower_id', session.user.id)
-    .eq('followee_id', followeeId)
-    .single();
+    .delete()
+    .eq('follower_id', user.id)
+    .eq('following_id', targetId);
 
-  if (row) {
-    await supabase.from('follows').delete().eq('id', row.id);
-    return NextResponse.json({ following: false });
-  } else {
-    await supabase
-      .from('follows')
-      .insert({ follower_id: session.user.id, followee_id: followeeId });
-    return NextResponse.json({ following: true });
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 } 

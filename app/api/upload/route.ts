@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .storage
-    .from('project-files')
+    .from('projects')
     .createSignedUploadUrl(path, { upsert: false });       // options object
 
   if (error || !data) return new Response(error?.message, { status: 500 });
