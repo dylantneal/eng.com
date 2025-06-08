@@ -11,9 +11,10 @@ type Search = {
   cursor?: string;
 };
 
-export default async function QuestionsPage({ searchParams }: { searchParams: Search }) {
+export default async function QuestionsPage({ searchParams }: { searchParams: Promise<Search> }) {
+  const params = await searchParams;
   const supabase = await createClient();
-  const sort   = searchParams.sort === 'top' ? 'top' : 'newest';
+  const sort   = params.sort === 'top' ? 'top' : 'newest';
   const limit  = 20;
 
   let query = supabase
@@ -25,16 +26,16 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Se
     ? query.order('upvotes', { ascending: false }).order('created_at', { ascending: false })
     : query.order('created_at', { ascending: false });
 
-  if (searchParams.cursor) {
+  if (params.cursor) {
     if (sort === 'top') {
-      const numericCursor = parseInt(searchParams.cursor, 10);
+      const numericCursor = parseInt(params.cursor, 10);
       if (!isNaN(numericCursor)) {
         query = query.lt('upvotes', numericCursor);
       } else {
-        console.warn('Invalid numeric cursor for upvotes sort:', searchParams.cursor);
+        console.warn('Invalid numeric cursor for upvotes sort:', params.cursor);
       }
     } else {
-      query = query.lt('created_at', searchParams.cursor);
+      query = query.lt('created_at', params.cursor);
     }
   }
 

@@ -18,9 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className="min-h-screen antialiased font-sans
-                   bg-rainbow bg-[length:400%_400%]
-                   animate-rainbow-drift animate-rainbow-hue"
+        className="min-h-screen antialiased font-sans bg-gray-50"
       >
         <Providers>
           <Navbar />

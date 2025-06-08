@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase-server';
+import { createClient } from '@/lib/supabase/server';
 import Image from 'next/image';
 import clsx from 'clsx';
 
@@ -8,12 +8,13 @@ export const revalidate = 30;
 export default async function GalleryPage({
   searchParams,
 }: {
-  searchParams?: { sort?: string }
+  searchParams?: Promise<{ sort?: string }>
 }) {
-  const sortIsTop = searchParams?.sort === 'top';
+  const params = await searchParams;
+  const sortIsTop = params?.sort === 'top';
   const orderColumn = sortIsTop ? 'tips_cents' : 'created_at';
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: rawProjects, error } = await supabase
     .from('project_feed')
@@ -35,7 +36,7 @@ export default async function GalleryPage({
     throw error;
   }
 
-  const projects = rawProjects?.map(p => ({
+  let projects = rawProjects?.map(p => ({
     ...p,
     // If thumb is already a full URL, use it; if it's a path, construct the URL
     thumb_url: p.thumb?.startsWith('http') 
@@ -45,6 +46,78 @@ export default async function GalleryPage({
         : `https://picsum.photos/seed/${p.id}/480/360`,
     username: p.handle,
   })) || [];
+
+  // Add sample data if no projects exist
+  if (projects.length === 0) {
+    projects = [
+      {
+        id: 'sample-1',
+        title: 'Arduino Weather Station',
+        slug: 'arduino-weather-station',
+        handle: 'engineerdemo',
+        username: 'engineerdemo',
+        thumb: null,
+        thumb_url: 'https://picsum.photos/seed/weather-station/480/360',
+        tips_cents: 2500,
+        created_at: '2024-01-15T10:00:00Z'
+      },
+      {
+        id: 'sample-2',
+        title: '3D Printed Robot Arm',
+        slug: '3d-printed-robot-arm',
+        handle: 'roboticsexpert',
+        username: 'roboticsexpert',
+        thumb: null,
+        thumb_url: 'https://picsum.photos/seed/robot-arm/480/360',
+        tips_cents: 4200,
+        created_at: '2024-01-10T14:30:00Z'
+      },
+      {
+        id: 'sample-3',
+        title: 'IoT Smart Home Controller',
+        slug: 'iot-smart-home-controller',
+        handle: 'iotmaker',
+        username: 'iotmaker',
+        thumb: null,
+        thumb_url: 'https://picsum.photos/seed/smart-home/480/360',
+        tips_cents: 1800,
+        created_at: '2024-01-08T09:15:00Z'
+      },
+      {
+        id: 'sample-4',
+        title: 'Custom PCB Design Tool',
+        slug: 'custom-pcb-design-tool',
+        handle: 'pcbwizard',
+        username: 'pcbwizard',
+        thumb: null,
+        thumb_url: 'https://picsum.photos/seed/pcb-tool/480/360',
+        tips_cents: 3600,
+        created_at: '2024-01-05T16:45:00Z'
+      },
+      {
+        id: 'sample-5',
+        title: 'Drone Flight Controller',
+        slug: 'drone-flight-controller',
+        handle: 'dronetech',
+        username: 'dronetech',
+        thumb: null,
+        thumb_url: 'https://picsum.photos/seed/drone-controller/480/360',
+        tips_cents: 5100,
+        created_at: '2024-01-02T11:20:00Z'
+      },
+      {
+        id: 'sample-6',
+        title: 'Solar Panel Optimizer',
+        slug: 'solar-panel-optimizer',
+        handle: 'greenengineer',
+        username: 'greenengineer',
+        thumb: null,
+        thumb_url: 'https://picsum.photos/seed/solar-optimizer/480/360',
+        tips_cents: 2900,
+        created_at: '2023-12-28T08:30:00Z'
+      }
+    ];
+  }
 
   return (
     <section className="mx-auto w-full max-w-5xl px-4">
@@ -79,7 +152,7 @@ export default async function GalleryPage({
             {project.thumb_url ? (
               <Image
                 src={project.thumb_url}
-                alt={project.title}
+                alt={project.title || ''}
                 width={400}
                 height={300}
                 className="w-full object-cover"
