@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   ShoppingCart, 
   Star, 
@@ -236,7 +236,7 @@ function PurchaseModal({ item, isOpen, onClose, onPurchase }: PurchaseModalProps
 }
 
 export default function Marketplace({ category, searchQuery, showFeatured = true }: MarketplaceProps) {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(category || 'all');
@@ -405,8 +405,8 @@ export default function Marketplace({ category, searchQuery, showFeatured = true
   };
 
   const handlePurchase = (item: MarketplaceItem) => {
-    if (!session) {
-      window.location.href = '/signin';
+    if (!user) {
+      window.location.href = '/auth';
       return;
     }
     setSelectedItem(item);
@@ -457,7 +457,7 @@ export default function Marketplace({ category, searchQuery, showFeatured = true
           <div className="flex items-center gap-4 mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Marketplace</h2>
             <div className="flex items-center gap-3">
-              {session && (
+              {user && (
                 <Link
                   href="/test-marketplace"
                   className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"

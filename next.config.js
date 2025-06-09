@@ -2,13 +2,19 @@
 const nextConfig = {
   serverExternalPackages: ['three'],
   images: {
-    domains: ['localhost', 'ewbopfohuxlhhddtptka.supabase.co', 'picsum.photos', 'robohash.org'],
+    domains: ['localhost', 'ewbopfohuxlhhddtptka.supabase.co', 'picsum.photos', 'robohash.org', 'images.unsplash.com'],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '*.supabase.co',
         port: '',
         pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        port: '',
+        pathname: '/**',
       },
     ],
   },

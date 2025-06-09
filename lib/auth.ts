@@ -1,80 +1,124 @@
-import { type NextAuthOptions } from 'next-auth';
-import GitHubProvider from 'next-auth/providers/github';
-import GoogleProvider from 'next-auth/providers/google';
-import CredentialsProvider from 'next-auth/providers/credentials';
 import { createClient } from '@supabase/supabase-js';
-import { SupabaseAdapter } from '@next-auth/supabase-adapter';
 
-const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey  =
-  process.env.SUPABASE_SERVICE_ROLE_KEY     // <── preferred (server-side)
-  ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; // dev fallback
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-/** ── Auth.js / Next-Auth configuration ─────────────────────── */
-export const authOptions: NextAuthOptions = {
-  /* build the adapter only if both pieces exist */
-  adapter:
-    supabaseUrl && supabaseKey
-      ? SupabaseAdapter({ url: supabaseUrl, secret: supabaseKey })
-      : undefined,
-  secret: process.env.NEXTAUTH_SECRET!,
-  providers: [
-    // ── Email + password login ───────────────────────────
-    CredentialsProvider({
-      name: 'Email',
-      credentials: {
-        email:    { label: 'Email',    type: 'email'    },
-        password: { label: 'Password', type: 'password' },
+/**
+ * Listen to authentication state changes
+ */
+export function onAuthStateChange(callback: (event: string, session: any) => void) {
+  return supabase.auth.onAuthStateChange(callback);
+}
+
+/**
+ * Get Supabase client instance
+ */
+export function getSupabaseClient() {
+  return supabase;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  display_name: string;
+  avatar_url?: string;
+  bio?: string;
+  interests?: string;
+  location?: string;
+  website?: string;
+  github_username?: string;
+  linkedin_username?: string;
+  engineering_discipline?: string;
+  experience_level?: 'student' | 'entry' | 'mid' | 'senior' | 'expert';
+  company?: string;
+  job_title?: string;
+  created_at: string;
+  last_active: string;
+  post_karma: number;
+  comment_karma: number;
+  is_verified: boolean;
+  is_pro: boolean;
+  joined_communities: string[];
+  saved_posts: string[];
+  preferences: UserPreferences;
+}
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'system';
+  email_notifications: boolean;
+  push_notifications: boolean;
+  show_online_status: boolean;
+  public_profile: boolean;
+  allow_dm: boolean;
+  feed_algorithm: 'hot' | 'new' | 'top' | 'personalized';
+  favorite_communities: string[];
+  blocked_users: string[];
+  nsfw_content: boolean;
+}
+
+// Authentication functions
+export async function signUp(email: string, password: string, userData: Partial<User>) {
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username: userData.username,
+          display_name: userData.display_name,
+          avatar_url: userData.avatar_url,
+          bio: userData.bio,
+          interests: userData.interests,
+          engineering_discipline: userData.engineering_discipline,
+          experience_level: userData.experience_level,
+        },
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) return null;
+    });
+    if (error) throw error;
+    return { user: data.user, error: null };
+  } catch (error) {
+    return { user: null, error };
+  }
+}
 
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,   // public anon key is fine for sign-in
-        );
+export async function signIn(email: string, password: string) {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    if (error) throw error;
+    return { user: data.user, error: null };
+  } catch (error) {
+    return { user: null, error };
+  }
+}
 
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: credentials.email,
-          password: credentials.password,
-        });
-        if (error || !data.session || !data.user) return null;
+export async function signOut() {
+  try {
+    const { error } = await supabase.auth.signOut();
+    return { error };
+  } catch (error) {
+    return { error };
+  }
+}
 
-        return {
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.user_metadata?.name ?? null,
-        };
-      },
-    }),
-
-    // ── OAuth providers ─────────────────────────────────
-    GitHubProvider({
-      clientId:     process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-    }),
-    GoogleProvider({
-      clientId:     process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-  ],
-  session: { strategy: 'jwt' },
-  pages: {
-    signIn: '/signin',
-    signOut: '/'
-  },
-  callbacks: {
-    /**
-     * Inject the Supabase user id so the client can call
-     * `session.user.id` (used in ProjectUploader, etc.)
-     */
-    async session({ session, token }) {
-      if (token.sub) (session.user as any).id = token.sub;
-      return session;
-    },
-  },
-  /**
-   * You can uncomment debug in local dev if needed
-   * debug: process.env.NODE_ENV === 'development',
-   */
-}; 
+export async function getCurrentUser(): Promise<User | null> {
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return null;
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    if (profileError || !profile) return null;
+    return profile as User;
+  } catch (error) {
+    return null;
+  }
+} 

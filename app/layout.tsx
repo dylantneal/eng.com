@@ -1,30 +1,34 @@
-import './globals.css';
-import Providers from './providers';
-import Navbar from '@/components/Navbar';
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import { AuthProvider } from '@/contexts/AuthContext'
+import Navbar from '@/components/Navbar'
 
-export const metadata = {
-  title: 'eng.com',
-  description: 'Learn • Build • Share • Earn',
-};
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: 'eng.com - Engineering Community',
+  description: 'A platform for engineers to collaborate, share projects, and learn together',
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   // Add error boundary logging
   console.log("=== Layout rendering started ===");
   
   return (
     <html lang="en">
-      <body
-        className="min-h-screen antialiased font-sans bg-gray-50"
-      >
-        <Providers>
+      <body className={`${inter.className} min-h-screen antialiased font-sans bg-gray-900`}>
+        <AuthProvider>
           <Navbar />
-          <main className="max-w-screen-lg mx-auto px-4 py-8">{children}</main>
-        </Providers>
+          <main className="min-h-screen">
+            {children}
+          </main>
+        </AuthProvider>
       </body>
     </html>
-  );
+  )
 } 

@@ -1,97 +1,62 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { signIn } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import EngineeringBackground from '@/components/EngineeringBackground';
+import DarkSignInForm from '@/components/auth/DarkSignInForm';
 
-export default function SignIn() {
-  const [email, setEmail] = useState('');
-  const [password, setPass] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    const messageParam = searchParams.get('message');
-    if (messageParam === 'account-deleted') {
-      setMessage('Your account has been successfully deleted. Thank you for using eng.com!');
-    }
-  }, [searchParams]);
-
-  async function handleCredLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    const res = await signIn('credentials', {
-      email,
-      password,
-      redirect: false,
-    });
-    if (res?.error) setError(res.error);
-    else if (res?.ok) window.location.href = '/';
-  }
-
+export default function SignInPage() {
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl">
-        {message && (
-          <div className="w-full max-w-md mx-auto mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-green-800 text-center">{message}</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <EngineeringBackground />
+      
+      <div className="max-w-md w-full space-y-8 p-10 bg-gray-800/50 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-700/50 relative z-10">
+        <div>
+          <div className="mb-8 flex items-center justify-center gap-3 px-6 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-full">
+            <span className="text-lg font-bold tracking-wider text-engineering">ENG.COM</span>
+            <span className="text-yellow-400 animate-pulse">✨</span>
           </div>
-        )}
-        
-        <div className="flex flex-col lg:flex-row gap-6 justify-center items-start">
-          {/* Email signin */}
-          <Card className="w-full max-w-sm p-6 space-y-4">
-            <h1 className="text-lg font-semibold text-center">Sign in</h1>
-            <form onSubmit={handleCredLogin} className="space-y-3">
-              <input
-                type="email"
-                placeholder="you@example.com"
-                className="w-full border rounded px-3 py-2"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                className="w-full border rounded px-3 py-2"
-                value={password}
-                onChange={(e) => setPass(e.target.value)}
-                required
-              />
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <Button type="submit" className="w-full">
-                Sign in
-              </Button>
-            </form>
-            <p className="text-center text-sm">
-              No account?{' '}
-              <a href="/signup" className="text-brand underline">
-                Create one
-              </a>
-            </p>
-          </Card>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
+            Welcome Back, Engineer
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-400">
+            Sign in to continue building the future
+          </p>
+        </div>
 
-          {/* Social signin - only show if OAuth is configured */}
-          <Card className="w-full max-w-sm p-6 space-y-4">
-            <h2 className="text-center font-medium">or continue with</h2>
-            <p className="text-center text-sm text-gray-500">
-              OAuth providers not configured in development
-            </p>
-            <div className="space-y-2 opacity-50">
-              <Button className="w-full" disabled>
-                GitHub (Not configured)
-              </Button>
-              <Button className="w-full" disabled>
-                Google (Not configured)
-              </Button>
-            </div>
-          </Card>
+        <div className="bg-white/5 backdrop-blur-md rounded-xl p-6 border border-white/10">
+          <DarkSignInForm callbackUrl="/dashboard" />
+        </div>
+
+        <div className="text-center">
+          <p className="text-sm text-gray-400">
+            Don&apos;t have an account?{' '}
+            <Link
+              href="/signup"
+              className="font-medium text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              Join the engineering community
+            </Link>
+          </p>
+        </div>
+
+        {/* Engineering Stats */}
+        <div className="grid grid-cols-3 gap-4 text-center mt-8 pt-8 border-t border-gray-700/50">
+          <div>
+            <div className="text-lg font-bold text-blue-400">10K+</div>
+            <div className="text-xs text-gray-400">Engineers</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-purple-400">50K+</div>
+            <div className="text-xs text-gray-400">Projects</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-cyan-400">$2M+</div>
+            <div className="text-xs text-gray-400">Earned</div>
+          </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 } 
