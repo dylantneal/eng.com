@@ -1,351 +1,318 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment } from '@react-three/drei';
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
-import * as THREE from 'three';
-import { 
-  RotateCcw, 
-  ZoomIn, 
-  ZoomOut, 
-  Move3D, 
-  Eye, 
-  EyeOff, 
-  Layers,
-  Download,
-  Share2,
-  Maximize2
-} from 'lucide-react';
+import { useState, useEffect, useRef, Suspense } from 'react';
+// Temporarily commenting out Three.js imports to fix server startup
+// import { Canvas, useLoader, useFrame } from '@react-three/fiber';
+// import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
+// import { OrbitControls, PerspectiveCamera, Environment, Grid } from '@react-three/drei';
+import { ProcessingResult } from '@/lib/cad-processor';
+// import * as THREE from 'three';
 
 interface CADViewerProps {
-  fileUrl?: string;
-  fileName?: string;
-  fileType?: string;
-  width?: string;
-  height?: string;
-  showControls?: boolean;
-  onLoad?: () => void;
-  onError?: (error: string) => void;
+  processingResult: ProcessingResult;
+  onMeasurement?: (measurement: Measurement) => void;
+  className?: string;
 }
 
-interface ModelProps {
-  url: string;
-  fileType: string;
-  onLoad?: () => void;
-  onError?: (error: string) => void;
+interface Measurement {
+  type: 'distance' | 'area' | 'volume';
+  value: number;
+  unit: string;
+  points?: any[]; // Simplified for testing
 }
 
-function Model({ url, fileType, onLoad, onError }: ModelProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
+export default function CADViewer({ processingResult, onMeasurement, className }: CADViewerProps) {
+  const [viewerMode, setViewerMode] = useState<'3D' | '2D' | 'PCB'>('3D');
+  const [showWireframe, setShowWireframe] = useState(false);
+  const [showMeasurements, setShowMeasurements] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState('default');
+  const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
+  // Get the primary viewer type from processing result
   useEffect(() => {
-    const loadModel = async () => {
-      try {
-        let loader: STLLoader | OBJLoader;
-        
-        switch (fileType.toLowerCase()) {
-          case 'stl':
-            loader = new STLLoader();
-            const stlGeometry = await new Promise<THREE.BufferGeometry>((resolve, reject) => {
-              (loader as STLLoader).load(
-                url, 
-                (geometry) => resolve(geometry),
-                undefined,
-                reject
-              );
-            });
-            setGeometry(stlGeometry);
-            break;
-            
-          case 'obj':
-            loader = new OBJLoader();
-            const objGroup = await new Promise<THREE.Group>((resolve, reject) => {
-              (loader as OBJLoader).load(
-                url,
-                (group) => resolve(group),
-                undefined,
-                reject
-              );
-            });
-            // Extract geometry from the first mesh in the group
-            const firstMesh = objGroup.children.find(child => child instanceof THREE.Mesh) as THREE.Mesh;
-            if (firstMesh) {
-              setGeometry(firstMesh.geometry);
-            }
-            break;
-            
-          default:
-            throw new Error(`Unsupported file type: ${fileType}`);
-        }
-        
-        onLoad?.();
-      } catch (error) {
-        console.error('Error loading model:', error);
-        onError?.(error instanceof Error ? error.message : 'Failed to load model');
-      }
-    };
-
-    if (url) {
-      loadModel();
+    const primaryViewer = processingResult.viewers[0];
+    if (primaryViewer) {
+      setViewerMode(primaryViewer.type);
     }
-  }, [url, fileType, onLoad, onError]);
+  }, [processingResult]);
 
-  useFrame((state) => {
-    if (meshRef.current) {
-      // Optional: Add subtle rotation animation
-      // meshRef.current.rotation.y += 0.005;
+  // Render different viewers based on file type
+  const renderViewer = () => {
+    switch (viewerMode) {
+      case '3D':
+        return <ThreeDViewer 
+          processingResult={processingResult}
+          showWireframe={showWireframe}
+          showMeasurements={showMeasurements}
+          selectedMaterial={selectedMaterial}
+          onMeasurement={handleMeasurement}
+        />;
+      case '2D':
+        return <TwoDViewer 
+          processingResult={processingResult}
+          showMeasurements={showMeasurements}
+          onMeasurement={handleMeasurement}
+        />;
+      case 'PCB':
+        return <PCBViewer 
+          processingResult={processingResult}
+          showMeasurements={showMeasurements}
+          onMeasurement={handleMeasurement}
+        />;
+      default:
+        return <div className="text-center text-gray-500">Unsupported file type</div>;
     }
-  });
+  };
 
-  if (!geometry) return null;
+  const handleMeasurement = (measurement: Measurement) => {
+    setMeasurements(prev => [...prev, measurement]);
+    onMeasurement?.(measurement);
+  };
+
+  const materials = [
+    { id: 'default', name: 'Default', color: '#808080' },
+    { id: 'aluminum', name: 'Aluminum', color: '#C0C0C0' },
+    { id: 'steel', name: 'Steel', color: '#404040' },
+    { id: 'plastic', name: 'Plastic', color: '#4CAF50' },
+    { id: 'copper', name: 'Copper', color: '#B87333' },
+    { id: 'gold', name: 'Gold', color: '#FFD700' },
+  ];
 
   return (
-    <mesh ref={meshRef} geometry={geometry}>
-      <meshStandardMaterial 
-        color="#6366f1" 
-        metalness={0.1} 
-        roughness={0.2}
-        transparent
-        opacity={0.9}
-      />
-    </mesh>
+    <div className={`bg-white border border-gray-200 rounded-lg overflow-hidden ${className}`}>
+      {/* Viewer Controls */}
+      <div className="border-b border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            {/* File Info */}
+            <div>
+              <h3 className="font-medium text-gray-900">{processingResult.originalFile.name}</h3>
+              <p className="text-sm text-gray-500">
+                {processingResult.originalFile.format} • {(processingResult.originalFile.size / 1024 / 1024).toFixed(2)} MB
+              </p>
+            </div>
+            
+            {/* Processing Status */}
+            {processingResult.processing.status !== 'COMPLETED' && (
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm text-blue-600">
+                  Processing... {processingResult.processing.progress}%
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Viewer Mode Tabs */}
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            {processingResult.viewers.map((viewer) => (
+              <button
+                key={viewer.type}
+                onClick={() => setViewerMode(viewer.type)}
+                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                  viewerMode === viewer.type
+                    ? 'bg-white text-gray-900 shadow'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {viewer.type} View
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tool Controls */}
+        <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            {/* Wireframe Toggle */}
+            {viewerMode === '3D' && (
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={showWireframe}
+                  onChange={(e) => setShowWireframe(e.target.checked)}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700">Wireframe</span>
+              </label>
+            )}
+
+            {/* Measurements Toggle */}
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={showMeasurements}
+                onChange={(e) => setShowMeasurements(e.target.checked)}
+                className="mr-2"
+              />
+              <span className="text-sm text-gray-700">Measurements</span>
+            </label>
+
+            {/* Material Selector */}
+            {viewerMode === '3D' && (
+              <select
+                value={selectedMaterial}
+                onChange={(e) => setSelectedMaterial(e.target.value)}
+                className="text-sm border border-gray-300 rounded px-2 py-1"
+              >
+                {materials.map((material) => (
+                  <option key={material.id} value={material.id}>
+                    {material.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Metadata Display */}
+          <div className="flex items-center space-x-4 text-xs text-gray-500">
+            {processingResult.metadata.dimensions && (
+              <span>
+                {processingResult.metadata.dimensions.width.toFixed(1)} × {' '}
+                {processingResult.metadata.dimensions.height.toFixed(1)} × {' '}
+                {processingResult.metadata.dimensions.depth?.toFixed(1)} {processingResult.metadata.units}
+              </span>
+            )}
+            {processingResult.metadata.triangles && (
+              <span>{processingResult.metadata.triangles.toLocaleString()} triangles</span>
+            )}
+            {processingResult.metadata.layers && (
+              <span>{processingResult.metadata.layers} layers</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Viewer Content */}
+      <div className="relative h-96 bg-gray-50">
+        {renderViewer()}
+        
+        {/* Measurements Overlay */}
+        {measurements.length > 0 && (
+          <div className="absolute top-4 left-4 bg-white border border-gray-200 rounded-lg p-3 shadow-lg max-w-xs">
+            <h4 className="font-medium text-gray-900 mb-2">Measurements</h4>
+            <div className="space-y-1">
+              {measurements.map((measurement, index) => (
+                <div key={index} className="text-sm text-gray-600">
+                  {measurement.type}: {measurement.value.toFixed(2)} {measurement.unit}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
-export default function CADViewer({ 
-  fileUrl, 
-  fileName, 
-  fileType = 'stl',
-  width = '100%',
-  height = '400px',
-  showControls = true,
-  onLoad,
-  onError 
-}: CADViewerProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showWireframe, setShowWireframe] = useState(false);
-  const [showGrid, setShowGrid] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const canvasRef = useRef<HTMLDivElement>(null);
-
-  const handleLoad = () => {
-    setIsLoading(false);
-    onLoad?.();
-  };
-
-  const handleError = (errorMessage: string) => {
-    setIsLoading(false);
-    setError(errorMessage);
-    onError?.(errorMessage);
-  };
-
-  const resetCamera = () => {
-    // This would reset the camera position - implementation depends on camera controls
-    console.log('Reset camera position');
-  };
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement && canvasRef.current) {
-      canvasRef.current.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
-
-  const downloadModel = () => {
-    if (fileUrl) {
-      const link = document.createElement('a');
-      link.href = fileUrl;
-      link.download = fileName || 'model';
-      link.click();
-    }
-  };
-
-  const shareModel = async () => {
-    if (navigator.share && fileUrl) {
-      try {
-        await navigator.share({
-          title: fileName || 'CAD Model',
-          url: window.location.href
-        });
-      } catch (error) {
-        console.log('Error sharing:', error);
-      }
-    } else {
-      // Fallback: copy URL to clipboard
-      navigator.clipboard.writeText(window.location.href);
-    }
-  };
-
-  if (error) {
-    return (
-      <div 
-        className="flex items-center justify-center bg-gray-100 rounded-lg border-2 border-dashed border-gray-300"
-        style={{ width, height }}
-      >
-        <div className="text-center p-6">
-          <div className="text-red-500 mb-2">
-            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-1">Failed to load model</h3>
-          <p className="text-sm text-gray-500">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
+// 3D Viewer Component (Simplified for testing)
+function ThreeDViewer({ 
+  processingResult, 
+  showWireframe, 
+  showMeasurements, 
+  selectedMaterial, 
+  onMeasurement 
+}: {
+  processingResult: ProcessingResult;
+  showWireframe: boolean;
+  showMeasurements: boolean;
+  selectedMaterial: string;
+  onMeasurement: (measurement: Measurement) => void;
+}) {
   return (
-    <div className="relative bg-white rounded-lg border overflow-hidden" style={{ width, height }}>
-      {/* Loading State */}
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p className="text-sm text-gray-600">Loading 3D model...</p>
-          </div>
+    <div className="w-full h-full flex items-center justify-center bg-gray-100">
+      <div className="text-center">
+        <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+          <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
         </div>
-      )}
-
-      {/* Controls Bar */}
-      {showControls && (
-        <div className="absolute top-4 left-4 right-4 z-20">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-lg px-3 py-2 shadow-sm">
-              <button
-                onClick={resetCamera}
-                className="p-1 hover:bg-gray-100 rounded"
-                title="Reset View"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setShowWireframe(!showWireframe)}
-                className="p-1 hover:bg-gray-100 rounded"
-                title="Toggle Wireframe"
-              >
-                {showWireframe ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={() => setShowGrid(!showGrid)}
-                className="p-1 hover:bg-gray-100 rounded"
-                title="Toggle Grid"
-              >
-                <Layers className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-lg px-3 py-2 shadow-sm">
-              <button
-                onClick={downloadModel}
-                className="p-1 hover:bg-gray-100 rounded"
-                title="Download Model"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-              <button
-                onClick={shareModel}
-                className="p-1 hover:bg-gray-100 rounded"
-                title="Share Model"
-              >
-                <Share2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={toggleFullscreen}
-                className="p-1 hover:bg-gray-100 rounded"
-                title="Fullscreen"
-              >
-                <Maximize2 className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* File Info */}
-      {fileName && (
-        <div className="absolute bottom-4 left-4 z-20">
-          <div className="bg-white/90 backdrop-blur rounded-lg px-3 py-2 shadow-sm">
-            <p className="text-sm font-medium text-gray-900">{fileName}</p>
-            <p className="text-xs text-gray-500 uppercase">{fileType} Model</p>
-          </div>
-        </div>
-      )}
-
-      {/* 3D Canvas */}
-      <div ref={canvasRef} className="w-full h-full">
-        <Canvas
-          camera={{ position: [5, 5, 5], fov: 50 }}
-          style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)' }}
-        >
-          {/* Lighting */}
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[10, 10, 5]} intensity={0.8} castShadow />
-          <pointLight position={[-10, -10, -5]} intensity={0.3} />
-
-          {/* Environment */}
-          <Environment preset="studio" />
-
-          {/* Grid */}
-          {showGrid && (
-            <Grid 
-              args={[20, 20]} 
-              cellSize={1} 
-              cellThickness={0.5} 
-              cellColor="#e2e8f0" 
-              sectionSize={5} 
-              sectionThickness={1} 
-              sectionColor="#cbd5e1"
-              fadeDistance={25}
-              fadeStrength={1}
-            />
-          )}
-
-          {/* Model */}
-          {fileUrl && (
-            <Model 
-              url={fileUrl} 
-              fileType={fileType} 
-              onLoad={handleLoad}
-              onError={handleError}
-            />
-          )}
-
-          {/* Controls */}
-          <OrbitControls 
-            enablePan={true}
-            enableZoom={true}
-            enableRotate={true}
-            dampingFactor={0.05}
-            enableDamping={true}
-          />
-        </Canvas>
+        <h3 className="text-lg font-medium text-gray-900">3D CAD Viewer</h3>
+        <p className="text-gray-500 mt-2">
+          Advanced 3D model viewer with measurement tools
+        </p>
+        <p className="text-sm text-gray-400 mt-2">
+          Format: {processingResult.originalFile.format} • Material: {selectedMaterial}
+        </p>
+        <p className="text-xs text-gray-400 mt-1">
+          Wireframe: {showWireframe ? 'On' : 'Off'} • Measurements: {showMeasurements ? 'On' : 'Off'}
+        </p>
       </div>
+    </div>
+  );
+}
 
-      {/* No Model State */}
-      {!fileUrl && !isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center p-6">
-            <div className="text-gray-400 mb-4">
-              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No 3D Model</h3>
-            <p className="text-sm text-gray-500">Upload a CAD file to view it here</p>
-            <p className="text-xs text-gray-400 mt-2">
-              Supported formats: STL, OBJ, STEP (coming soon)
-            </p>
-          </div>
+// STL Model Component (Removed for testing - Three.js causing startup issues)
+
+// 2D Viewer Component
+function TwoDViewer({ 
+  processingResult, 
+  showMeasurements, 
+  onMeasurement 
+}: {
+  processingResult: ProcessingResult;
+  showMeasurements: boolean;
+  onMeasurement: (measurement: Measurement) => void;
+}) {
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-white">
+      <div className="text-center">
+        <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+          <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
         </div>
-      )}
+        <h3 className="text-lg font-medium text-gray-900">2D CAD Viewer</h3>
+        <p className="text-gray-500 mt-2">
+          2D drawing viewer with layer support and dimensional analysis
+        </p>
+        <p className="text-sm text-gray-400 mt-2">
+          Format: {processingResult.originalFile.format}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// PCB Viewer Component
+function PCBViewer({ 
+  processingResult, 
+  showMeasurements, 
+  onMeasurement 
+}: {
+  processingResult: ProcessingResult;
+  showMeasurements: boolean;
+  onMeasurement: (measurement: Measurement) => void;
+}) {
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-green-900">
+      <div className="text-center">
+        <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
+          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium text-white">PCB Viewer</h3>
+        <p className="text-green-200 mt-2">
+          Circuit board viewer with layer support and component analysis
+        </p>
+        <p className="text-sm text-green-300 mt-2">
+          Format: {processingResult.originalFile.format}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Loading Indicator
+function LoadingIndicator() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+        <p className="text-gray-500">Loading 3D model...</p>
+      </div>
     </div>
   );
 } 

@@ -1,12 +1,13 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { supabaseBrowser } from '@/lib/supabase/client';
-import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -15,94 +16,79 @@ export async function POST(request: NextRequest) {
     const description = formData.get('description') as string;
     const readme = formData.get('readme') as string;
     const isPublic = formData.get('public') === 'true';
-    
-    if (!title?.trim()) {
+    const files = formData.getAll('files') as File[];
+
+    if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
-    const supabase = supabaseBrowser;
+    const supabase = await createClient();
 
-    // Generate slug from title
+    // Create project slug
     const slug = title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      + '-' + Math.random().toString(36).substring(2, 8);
+      .replace(/^-|-$/g, '');
 
-    // Handle file uploads
-    const files = formData.getAll('files') as File[];
-    const uploadedFiles: any[] = [];
-
+    // Upload files to storage
+    const filesDescriptor: any[] = [];
     for (const file of files) {
-      if (file.size > 0) {
-        const fileName = `${Date.now()}-${file.name}`;
-        const filePath = `${session.user.id}/${slug}/${fileName}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('projects')
-          .upload(filePath, file, {
-            contentType: file.type,
-            upsert: false
-          });
-
-        if (uploadError) {
-          console.error('File upload error:', uploadError);
-          return NextResponse.json({ error: 'Failed to upload files' }, { status: 500 });
-        }
-
-        uploadedFiles.push({
-          name: file.name,
-          path: filePath,
-          size: file.size,
-          type: file.type
-        });
+      const path = `${session.user.id}/${slug}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage
+        .from(isPublic ? 'projects' : 'projects-private')
+        .upload(path, file, { contentType: file.type });
+      
+      if (error) {
+        console.error('Storage upload error:', error);
+        return NextResponse.json({ error: 'Storage upload failed: ' + error.message }, { status: 500 });
       }
+      
+      filesDescriptor.push({
+        name: file.name,
+        path,
+        size: file.size,
+        mime: file.type,
+      });
     }
 
-    // Create project
+    // Insert project
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .insert({
-        title,
-        slug,
-        description,
         owner_id: session.user.id,
+        slug,
+        title,
+        description,
         is_public: isPublic,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
       })
       .select()
       .single();
 
     if (projectError) {
       console.error('Project creation error:', projectError);
-      return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to create project: ' + projectError.message }, { status: 500 });
     }
 
-    // Create version with files and README
+    // Insert version
     if (project) {
-      const { error: versionError } = await supabase
-        .from('versions')
-        .insert({
-          project_id: project.id,
-          files: uploadedFiles,
-          readme_md: readme,
-          created_at: new Date().toISOString()
-        });
-
+      const { error: versionError } = await supabase.from('versions').insert({
+        project_id: project.id,
+        files: filesDescriptor,
+        readme_md: readme,
+      });
+      
       if (versionError) {
         console.error('Version creation error:', versionError);
-        // Don't fail the whole request, just log it
+        return NextResponse.json({ error: 'Failed to create version: ' + versionError.message }, { status: 500 });
       }
     }
 
     return NextResponse.json({ 
-      success: true, 
-      project: { 
-        id: project.id, 
+      project: {
+        id: project.id,
         slug: project.slug,
-        title: project.title 
-      } 
+        title: project.title
+      }
     });
 
   } catch (error) {

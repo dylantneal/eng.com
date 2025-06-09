@@ -2,7 +2,7 @@
 const nextConfig = {
   serverExternalPackages: ['three'],
   images: {
-    domains: ['localhost', 'ewbopfohuxlhhddtptka.supabase.co', 'picsum.photos'],
+    domains: ['localhost', 'ewbopfohuxlhhddtptka.supabase.co', 'picsum.photos', 'robohash.org'],
     remotePatterns: [
       {
         protocol: 'https',

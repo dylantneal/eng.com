@@ -59,15 +59,21 @@ export const authOptions: NextAuthOptions = {
       },
     }),
 
-    // ── OAuth providers ─────────────────────────────────
-    GitHubProvider({
-      clientId:     process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-    }),
-    GoogleProvider({
-      clientId:     process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
+    // ── OAuth providers (only if credentials are provided) ─────────────────────────────────
+    ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET && 
+        process.env.GITHUB_CLIENT_ID !== 'your_github_oauth_client_id' ? [
+      GitHubProvider({
+        clientId:     process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      })
+    ] : []),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET &&
+        process.env.GOOGLE_CLIENT_ID !== 'your_google_oauth_client_id' ? [
+      GoogleProvider({
+        clientId:     process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      })
+    ] : []),
   ],
   session: { strategy: 'jwt' },
   callbacks: {

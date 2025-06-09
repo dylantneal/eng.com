@@ -4,3 +4,34 @@ node_modules
 supabase/.temp/*
 
 types/supabase.ts
+
+# Next.js build output
+.next/
+out/
+
+# Build artifacts
+dist/
+build/
+
+# Debugging and temporary files
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+Thumbs.db
+
+# Local development
+.vercel
+.turbo

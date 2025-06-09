@@ -157,6 +157,36 @@ export default async function SettingsPage() {
             </Link>
           </div>
         </div>
+
+        {/* Danger Zone */}
+        <div className="mt-8 bg-white rounded-lg shadow-sm border border-red-200 p-6">
+          <h3 className="text-lg font-medium text-red-900 mb-4 flex items-center">
+            <span className="mr-2">⚠️</span>
+            Danger Zone
+          </h3>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-red-900">Delete Account</h4>
+                <p className="text-sm text-red-700 mt-1">
+                  Permanently delete your account and all associated data. This action cannot be undone.
+                </p>
+                <ul className="text-xs text-red-600 mt-2 list-disc list-inside space-y-1">
+                  <li>Your profile and all personal information will be deleted</li>
+                  <li>All your projects and files will be permanently removed</li>
+                  <li>Your username will become available for others to use</li>
+                  <li>You will be immediately signed out</li>
+                </ul>
+              </div>
+              <Link
+                href="/settings/delete-account"
+                className="ml-4 inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-100 border border-red-300 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                Delete Account
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

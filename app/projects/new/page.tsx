@@ -1,73 +1,48 @@
-/* Server component – gate the uploader behind authentication */
-import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
-import NewProjectForm from '@/app/components/new-project-form'
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import ModernProjectForm from '@/components/ModernProjectForm';
 
-export const metadata = { title: 'New Project — eng.com' }
+export const metadata = { title: 'New Project — eng.com' };
 
 export default async function NewProjectPage() {
-  const supabase = await createClient()
-  const { data: user } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  async function action(formData: FormData) {
-    'use server'
-    const supabase = await createClient()
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session) redirect('/login')
-
-    const title = formData.get('title') as string
-    const readme = formData.get('readme') as string
-    const isPublic = !!formData.get('public')
-
-    // 1. slugify
-    const slug = title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-
-    // 2. bucket upload (one per file input named "files")
-    const filesDescriptor: any[] = []
-    for (const file of formData.getAll('files') as File[]) {
-      const path = `${session.user.id}/${slug}/${Date.now()}-${file.name}`
-      const { error } = await supabase.storage
-        .from(isPublic ? 'projects' : 'projects-private')
-        .upload(path, file, { contentType: file.type })
-      if (error) throw error
-      filesDescriptor.push({
-        name: file.name,
-        path,
-        size: file.size,
-        mime: file.type,
-      })
-    }
-
-    // 3. insert project + version
-    const { data: project } = await supabase
-      .from('projects')
-      .insert({
-        owner: session.user.id,
-        slug,
-        title,
-        is_public: isPublic,
-      })
-      .select()
-      .single()
-
-    if (project) {
-      await supabase.from('versions').insert({
-        project_id: project.id,
-        files: filesDescriptor,
-        readme_md: readme,
-      })
-    }
-
-    revalidatePath('/gallery')
-    redirect(`/projects/${user.user?.user_metadata.username}/${slug}`)
+  const session = await getServerSession(authOptions);
+  
+  if (!session) {
+    redirect('/signin');
   }
 
-  return <NewProjectForm action={action} />
+  const supabase = await createClient();
+  
+  // Get user profile and project count
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('handle, plan')
+    .eq('id', session.user.id)
+    .single();
+
+  const { count: projectCount } = await supabase
+    .from('projects')
+    .select('*', { count: 'exact', head: true })
+    .eq('owner', session.user.id);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Create New Project</h1>
+          <p className="mt-2 text-gray-600">
+            Share your engineering project with the community
+          </p>
+        </div>
+
+        <ModernProjectForm
+          userPlan={profile?.plan || 'FREE'}
+          currentProjectCount={projectCount || 0}
+          userHandle={profile?.handle || null}
+        />
+      </div>
+    </div>
+  );
 } 

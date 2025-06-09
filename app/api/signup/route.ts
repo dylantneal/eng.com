@@ -13,13 +13,30 @@ export async function POST(req: Request) {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  const { error } = await supabase.auth.admin.createUser({
+  const { data: authData, error } = await supabase.auth.admin.createUser({
     email,
     password,
     email_confirm: true,      // skip "confirm your email" for dev
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  // Create a basic profile record that will be completed during onboarding
+  if (authData.user) {
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        handle: null, // will be set during onboarding
+        bio: null,
+        avatar_url: null
+      });
+
+    if (profileError) {
+      console.error('Profile creation error:', profileError);
+      // Don't fail signup if profile creation fails, user can complete later
+    }
+  }
 
   return NextResponse.json({ ok: true });
 } 

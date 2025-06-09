@@ -45,18 +45,24 @@ export default async function Landing() {
           community of builders.
         </p>
 
-        <div className="mt-10 flex gap-4">
+        <div className="mt-10 flex flex-col sm:flex-row gap-4">
           <Link
-            href="/gallery"
-            className="rounded bg-brand px-7 py-4 text-white font-medium shadow-md hover:shadow-xl transition"
+            href="/marketplace"
+            className="rounded bg-brand px-7 py-4 text-white font-medium shadow-md hover:shadow-xl transition text-center"
           >
-            Browse projects
+            🛒 Explore Marketplace
           </Link>
           <Link
-            href="/projects/new"
-            className="rounded border border-brand px-6 py-3 text-brand font-medium hover:bg-brand/5 transition"
+            href="/marketplace-showcase"
+            className="rounded bg-purple-600 px-7 py-4 text-white font-medium shadow-md hover:shadow-xl transition text-center"
           >
-            Publish your first project
+            ⚡ Advanced Features
+          </Link>
+          <Link
+            href="/gallery"
+            className="rounded border border-brand px-6 py-3 text-brand font-medium hover:bg-brand/5 transition text-center"
+          >
+            Browse projects
           </Link>
         </div>
 

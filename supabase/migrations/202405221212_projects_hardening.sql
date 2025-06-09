@@ -107,7 +107,11 @@ FOR EACH ROW
 EXECUTE FUNCTION public.enforce_pro_for_private_projects();
 
 -- 1-D  ────────────────────────────────────────────────────────────────────────
--- Private storage bucket for non-public projects
+-- Storage buckets for public and private projects
+insert into storage.buckets (id, name, public)
+     values ('projects', 'projects', true)
+on conflict (id) do nothing;
+
 insert into storage.buckets (id, name, public)
      values ('projects-private', 'projects-private', false)
 on conflict (id) do nothing;

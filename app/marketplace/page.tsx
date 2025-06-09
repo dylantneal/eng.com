@@ -22,28 +22,28 @@ export default async function MarketplacePage({
   
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Clean Header */}
       <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
               Engineering Marketplace
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
               Buy and sell CAD files, hardware kits, tutorials, and professional services. 
               Join the community where engineers learn, build, and earn together.
             </p>
             
             {/* Search Bar */}
-            <div className="mt-8 max-w-2xl mx-auto">
+            <div className="max-w-2xl mx-auto">
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Search className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
                   type="text"
                   placeholder="Search designs, kits, tutorials..."
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
                   defaultValue={params.search || ''}
                 />
               </div>
@@ -52,25 +52,25 @@ export default async function MarketplacePage({
         </div>
       </div>
 
-      {/* Stats Bar */}
-      <div className="bg-blue-50 border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+      {/* Clean Stats Bar */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             <div>
-              <div className="text-2xl font-bold text-blue-600">2,847</div>
-              <div className="text-sm text-gray-600">Active Listings</div>
+              <div className="text-3xl font-bold text-blue-600">2,847</div>
+              <div className="text-sm font-medium text-gray-600">Active Listings</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-600">156k</div>
-              <div className="text-sm text-gray-600">Downloads</div>
+              <div className="text-3xl font-bold text-blue-600">156k</div>
+              <div className="text-sm font-medium text-gray-600">Downloads</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-600">$127k</div>
-              <div className="text-sm text-gray-600">Earned by Sellers</div>
+              <div className="text-3xl font-bold text-blue-600">$127k</div>
+              <div className="text-sm font-medium text-gray-600">Earned by Sellers</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-600">4.8/5</div>
-              <div className="text-sm text-gray-600">Average Rating</div>
+              <div className="text-3xl font-bold text-blue-600">4.8/5</div>
+              <div className="text-sm font-medium text-gray-600">Average Rating</div>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import React from 'react'
 
 export default async function SettingsLayout({
@@ -9,13 +9,10 @@ export default async function SettingsLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = createClient(cookies())
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const session = await getServerSession(authOptions)
 
   /* ⛔  Redirect unauthenticated visitors */
-  if (!user) redirect('/')
+  if (!session) redirect('/auth/signin?callbackUrl=/settings')
 
   const tabs = [
     { slug: 'account', label: 'Account' },

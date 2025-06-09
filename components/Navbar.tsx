@@ -1,106 +1,135 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
+import { useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { usePathname } from 'next/navigation';
-import Button from '@/components/ui/Button';
-import { useEffect, useState } from 'react';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 export default function Navbar() {
-  const pathname = usePathname();
   const { data: session } = useSession();
-
-  /* ── fetch viewer's handle for /u/<handle> route ───────── */
-  const [profile, setProfile] = useState<{ handle: string; avatar_url: string | null } | null>(null);
-  useEffect(() => {
-    if (!session?.user.id) return;
-    supabaseBrowser
-      .from('profiles')
-      .select('handle, avatar_url')
-      .eq('id', session.user.id)
-      .single()
-      .then(({ data }) => setProfile(data ?? null));
-  }, [session]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <nav
-      className="
-        sticky top-0 z-30
-        bg-white/10 supports-[backdrop-filter]:bg-white/10
-        backdrop-blur-md
-        ring-1 ring-white/20 shadow-sm
-      "
-    >
-      <div className="max-w-screen-lg mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="font-bold tracking-tight text-xl">
-          eng<span className="text-pink-600">.com</span>
-        </Link>
+    <nav className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <Link href="/" className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">E</span>
+            </div>
+            <span className="text-xl font-semibold text-gray-900">eng.com</span>
+          </Link>
 
-        <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-          {[
-            { href: '/gallery', label: 'Gallery' },
-            { href: '/questions', label: 'Mini Q&A' },
-          ].map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={pathname.startsWith(link.href) ? 'text-pink-600' : ''}
+          {/* Main Navigation */}
+          <div className="hidden md:flex items-center space-x-8">
+            <Link 
+              href="/gallery" 
+              className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
             >
-              {link.label}
+              Projects
             </Link>
-          ))}
-        </div>
+            <Link 
+              href="/marketplace" 
+              className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            >
+              Marketplace
+            </Link>
+            <Link 
+              href="/community" 
+              className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            >
+              Community
+            </Link>
+          </div>
 
-        {session ? (
-          <div className="flex items-center gap-4">
-            <Link href="/home"        className="text-sm">Home</Link>
-            <Link href="/bookmarks"   className="text-sm">Bookmarks</Link>
-            <Link href="/settings"    className="text-sm">Settings</Link>
-            <Link
-              href="/projects/new"
-              className="rounded px-3 py-1 text-white bg-pink-600 hover:bg-pink-700 transition-colors"
-            >
-              New Project
-            </Link>
-            {profile && (
-              <Link
-                href={`/u/${profile.handle}`}
-                className="flex items-center gap-2 rounded hover:opacity-80 transition"
-              >
-                <Image
-                  src={profile.avatar_url ?? `https://robohash.org/${session!.user.id}`}
-                  alt="Me"
-                  width={28}
-                  height={28}
-                  className="h-7 w-7 rounded-full object-cover"
-                />
-                <span className="hidden md:inline text-sm">Profile</span>
-              </Link>
+          {/* Search */}
+          <div className="hidden lg:block">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search projects..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-80 pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm
+                          placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 
+                          focus:border-transparent bg-gray-50 hover:bg-white transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* User Actions */}
+          <div className="flex items-center space-x-4">
+            {session ? (
+              <>
+                <Link
+                  href="/projects/new"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white 
+                           bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 
+                           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                           transition-colors"
+                >
+                  New Project
+                </Link>
+                
+                <div className="relative group">
+                  <button className="flex items-center space-x-2 text-gray-700 hover:text-gray-900">
+                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-medium">
+                        {session.user?.email?.[0]?.toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                  </button>
+                  
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 
+                                invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200">
+                    <div className="py-1">
+                      <Link
+                        href="/home"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Dashboard
+                      </Link>
+                      <Link
+                        href="/settings"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Settings
+                      </Link>
+                      <button
+                        onClick={() => signOut({ callbackUrl: '/' })}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/signin"
+                  className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white 
+                           bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 
+                           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                           transition-colors"
+                >
+                  Sign up
+                </Link>
+              </>
             )}
-            <Button
-              size="sm"
-              onClick={() => signOut({ callbackUrl: '/' })}
-              className="whitespace-nowrap"
-            >
-              Sign out
-            </Button>
           </div>
-        ) : (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => (window.location.href = '/signin')}
-            >
-              Sign in
-            </Button>
-            <Button size="sm" onClick={() => (window.location.href = '/signup')}>
-              Sign up
-            </Button>
-          </div>
-        )}
+        </div>
       </div>
     </nav>
   );

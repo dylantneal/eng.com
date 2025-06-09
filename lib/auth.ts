@@ -59,6 +59,10 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: { strategy: 'jwt' },
+  pages: {
+    signIn: '/signin',
+    signOut: '/'
+  },
   callbacks: {
     /**
      * Inject the Supabase user id so the client can call
