@@ -2,14 +2,15 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
+import { env } from '@/lib/env';
 
 type C = { id: string; author: string; body: string };
 
-export default function Comments({ projectId, ownerId }: { projectId: string; ownerId: string }) {
+export default function Comments({ projectId }: { projectId: string }) {
   const [comments, setComments] = useState<C[]>([]);
   const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
 
   /* initial + realtime */
@@ -35,7 +36,7 @@ export default function Comments({ projectId, ownerId }: { projectId: string; ow
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectId, supabase]);
 
   return (
     <section>

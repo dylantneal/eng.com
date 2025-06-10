@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../api/auth/[...nextauth]/route';
 import { redirect } from 'next/navigation';
+import { supabaseServer } from '@/lib/supabase/server';
 import ProjectCard from '@/components/ProjectCard';
 import type { Database } from '@/types/supabase';
 import { createClient } from '@/lib/supabase/server';

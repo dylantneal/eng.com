@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Re-export authOptions for consistency
+export { authOptions } from '@/lib/authOptions';
+
 // Initialize Supabase client
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -120,5 +123,238 @@ export async function getCurrentUser(): Promise<User | null> {
     return profile as User;
   } catch (error) {
     return null;
+  }
+}
+
+// Utility to handle fetch with JSON
+async function fetchJson(url: string, options: RequestInit) {
+  const res = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    ...options,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw data?.error || new Error(`Request failed: ${res.status}`);
+  }
+  return data;
+}
+
+/**
+ * Vote on a post (upvote or downvote).
+ * Wraps the API route `/api/posts/[postId]/vote`.
+ */
+export async function voteOnPost(
+  userId: string,
+  postId: string,
+  voteType: 'upvote' | 'downvote'
+) {
+  try {
+    const data = await fetchJson(`/api/posts/${postId}/vote`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, vote_type: voteType === 'upvote' ? 'up' : 'down' }),
+    });
+    return { success: true, ...data };
+  } catch (error) {
+    console.error('voteOnPost error', error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Save a post for a user.
+ * Currently updates the `saved_posts` array column in the `profiles` table.
+ */
+export async function savePost(
+  userId: string,
+  postId: string,
+  _communityId?: string,
+  _tags?: string[]
+) {
+  try {
+    // Get current saved posts
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('saved_posts')
+      .eq('id', userId)
+      .single();
+
+    if (profileErr) throw profileErr;
+
+    const current: string[] = profile?.saved_posts || [];
+    if (current.includes(postId)) {
+      return { success: true, message: 'Already saved' };
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ saved_posts: [...current, postId] })
+      .eq('id', userId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    console.error('savePost error', error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Remove a saved post from the user profile.
+ */
+export async function unsavePost(userId: string, postId: string) {
+  try {
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('saved_posts')
+      .eq('id', userId)
+      .single();
+    if (profileErr) throw profileErr;
+    const current: string[] = profile?.saved_posts || [];
+    if (!current.includes(postId)) return { success: true, message: 'Not saved' };
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ saved_posts: current.filter((id) => id !== postId) })
+      .eq('id', userId);
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    console.error('unsavePost error', error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Join a community by adding the community ID to the user's `joined_communities` array.
+ */
+export async function joinCommunity(userId: string, communityId: string) {
+  try {
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('joined_communities')
+      .eq('id', userId)
+      .single();
+    if (profileErr) throw profileErr;
+
+    const current: string[] = profile?.joined_communities || [];
+    if (current.includes(communityId)) {
+      return { success: true, message: 'Already a member' };
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ joined_communities: [...current, communityId] })
+      .eq('id', userId);
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    console.error('joinCommunity error', error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Leave a community by removing the community ID from the user's `joined_communities` array.
+ */
+export async function leaveCommunity(userId: string, communityId: string) {
+  try {
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('joined_communities')
+      .eq('id', userId)
+      .single();
+    if (profileErr) throw profileErr;
+
+    const current: string[] = profile?.joined_communities || [];
+    if (!current.includes(communityId)) {
+      return { success: true, message: 'Not a member' };
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ joined_communities: current.filter((id) => id !== communityId) })
+      .eq('id', userId);
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    console.error('leaveCommunity error', error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Check if a user is a member of a community.
+ */
+export async function isUserMemberOfCommunity(userId: string, communityId: string) {
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('joined_communities')
+      .eq('id', userId)
+      .single();
+    if (error) throw error;
+    const current: string[] = profile?.joined_communities || [];
+    return current.includes(communityId);
+  } catch (error) {
+    console.error('isUserMemberOfCommunity error', error);
+    return false;
+  }
+}
+
+/**
+ * Retrieve the posts a user has saved.
+ */
+export async function getUserSavedPosts(userId: string) {
+  try {
+    // Assuming a table named `post_details` view or join to get full post data.
+    const { data, error } = await supabase
+      .from('saved_posts')
+      .select(`id, saved_at:created_at, post:posts(*)`)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return { success: true, posts: data };
+  } catch (error) {
+    console.error('getUserSavedPosts error', error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Retrieve the communities a user has joined along with membership metadata.
+ */
+export async function getUserCommunities(userId: string) {
+  try {
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('joined_communities')
+      .eq('id', userId)
+      .single();
+    if (profileErr) throw profileErr;
+
+    const joined: string[] = profile?.joined_communities || [];
+    if (joined.length === 0) return { success: true, communities: [] };
+
+    const { data: communities, error } = await supabase
+      .from('communities')
+      .select('*')
+      .in('id', joined);
+    if (error) throw error;
+
+    // Map to membership objects similar to expected by UI
+    const enriched = communities.map((c) => ({
+      id: `${userId}-${c.id}`,
+      joined_at: '',
+      role: 'member',
+      community: c,
+    }));
+
+    return { success: true, communities: enriched };
+  } catch (error) {
+    console.error('getUserCommunities error', error);
+    return { success: false, error };
   }
 } 

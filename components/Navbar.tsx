@@ -5,14 +5,19 @@ import { useState } from 'react';
 import { MagnifyingGlassIcon, UserIcon, Cog6ToothIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import { LogoMark } from '@/components/AnimatedLogo';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
   const { user, signOut } = useAuth();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      const { error } = await signOut();
+      if (!error) {
+        router.push('/');
+      }
     } catch (error) {
       console.error('Sign out error:', error);
     }
@@ -23,7 +28,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 group">
+          <Link href={user ? '/dashboard' : '/'} className="flex items-center space-x-2 group">
             <LogoMark className="group-hover:scale-110 transition-transform duration-200" />
             <span className="text-xl font-semibold text-white group-hover:text-blue-400 transition-colors">eng.com</span>
           </Link>
@@ -31,7 +36,7 @@ export default function Navbar() {
           {/* Main Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             <Link 
-              href="/gallery" 
+              href="/projects" 
               className="text-gray-300 hover:text-white font-medium transition-colors relative group"
             >
               Projects
@@ -135,7 +140,7 @@ export default function Navbar() {
             ) : (
               <>
                 <Link
-                  href="/auth"
+                  href="/signin"
                   className="text-gray-300 hover:text-white font-medium transition-colors"
                 >
                   Sign in

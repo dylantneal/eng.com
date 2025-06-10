@@ -8,14 +8,14 @@ import { useRef, useCallback, useEffect } from 'react';
 type Props = { userId: string };
 
 export default function InfiniteFeed({ userId }: Props) {
-  const search   = useSearchParams();
-  const filter   = search.get('filter') ?? 'newest';
+  const search = useSearchParams();
+  const filter = search.get('filter') ?? 'newest';
 
   /* ––––– SWR infinite ––––– */
   const getKey = (page: number, prev: any) => {
     if (prev && !prev.nextCursor) return null; // reached end
     const cursor = prev?.nextCursor ?? '';
-    return `/api/home-feed?filter=${filter}&cursor=${cursor}&uid=${userId}`;
+    return `/api/gallery?filter=${filter}&cursor=${cursor}`;
   };
 
   const { data, size, setSize, isLoading } = useSWRInfinite(getKey, (url) =>
