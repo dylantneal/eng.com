@@ -72,8 +72,8 @@ export default function DebugResetPage() {
           
           <div className="space-y-4">
             <div className="text-sm text-gray-500">
-              <p><strong>Current User:</strong> {session.user.email}</p>
-              <p><strong>User ID:</strong> {session.user.id}</p>
+              <p><strong>Current User:</strong> {session.user!.email}</p>
+              <p><strong>User ID:</strong> {(session.user as any).id ?? 'unknown'}</p>
             </div>
             
             {message && (

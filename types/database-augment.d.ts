@@ -102,6 +102,18 @@ declare module '@/types/supabase' {
           Update: Record<string, any>;
           Relationships: [];
         };
+        comment_votes: {
+          Row: Record<string, any>;
+          Insert: Record<string, any>;
+          Update: Record<string, any>;
+          Relationships: [];
+        };
+        payments: {
+          Row: Record<string, any>;
+          Insert: Record<string, any>;
+          Update: Record<string, any>;
+          Relationships: [];
+        };
       };
     };
   }

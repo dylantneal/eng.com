@@ -46,7 +46,7 @@ export default function CommentThread({ projectId }: { projectId: string }) {
 
     await supabaseBrowser.from('comments').insert({
       project_id: projectId,
-      user_id: session.user.id,
+      user_id: (session.user as any).id,
       body,
     });
     setBody('');

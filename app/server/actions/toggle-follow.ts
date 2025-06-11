@@ -13,17 +13,17 @@ export async function toggleFollow(targetId: string) {
   if (!user) throw new Error('Unauthenticated');
 
   const { data: existing } = await supabase
-    .from('follows')
+    .from<any>('follows' as any)
     .select('id')
     .eq('follower_id', user.id)
     .eq('following_id', targetId)
     .maybeSingle();
 
   if (existing) {
-    await supabase.from('follows').delete().eq('id', existing.id);
+    await supabase.from<any>('follows' as any).delete().eq('id', (existing as any).id);
   } else {
     await supabase
-      .from('follows')
+      .from<any>('follows' as any)
       .insert({ follower_id: user.id, following_id: targetId });
   }
 

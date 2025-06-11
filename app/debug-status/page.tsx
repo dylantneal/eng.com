@@ -67,10 +67,10 @@ export default function DebugStatusPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-3">Authentication Status</h2>
             <div className="bg-green-50 border border-green-200 rounded-xl p-4">
               <p><strong>Status:</strong> ✅ Signed In</p>
-              <p><strong>Email:</strong> {session.user.email}</p>
-              <p><strong>User ID:</strong> {session.user.id}</p>
-              <p><strong>Name:</strong> {session.user.name || 'Not set'}</p>
-              <p><strong>Image:</strong> {session.user.image || 'Not set'}</p>
+              <p><strong>Email:</strong> {session.user!.email}</p>
+              <p><strong>User ID:</strong> {(session.user as any).id ?? 'unknown'}</p>
+              <p><strong>Name:</strong> {session.user!.name ?? 'Not set'}</p>
+              <p><strong>Image:</strong> {session.user!.image ?? 'Not set'}</p>
             </div>
           </div>
 

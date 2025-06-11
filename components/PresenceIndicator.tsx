@@ -21,7 +21,7 @@ export default function PresenceIndicator({ projectId, className = '' }: Presenc
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (!session?.user?.id) return;
+    if (!(session?.user as any)?.id) return;
 
     // For MVP, we'll use a simple polling approach instead of WebSockets
     // In production, you'd use a proper WebSocket connection
@@ -36,9 +36,9 @@ export default function PresenceIndicator({ projectId, className = '' }: Presenc
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             projectId,
-            userId: session.user.id,
-            handle: session.user.name || 'Anonymous',
-            avatar_url: session.user.image,
+            userId: (session.user as any).id,
+            handle: session.user?.name ?? 'Anonymous',
+            avatar_url: session.user?.image,
           }),
         });
 
@@ -84,15 +84,15 @@ export default function PresenceIndicator({ projectId, className = '' }: Presenc
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId,
-          userId: session.user.id,
+          userId: (session.user as any).id,
         }),
       }).catch(console.error);
     };
-  }, [projectId, session?.user?.id]);
+  }, [projectId, (session?.user as any)?.id]);
 
   // Filter out current user and remove stale viewers (older than 30 seconds)
   const activeViewers = viewers.filter(viewer => 
-    viewer.id !== session?.user?.id && 
+    viewer.id !== (session?.user as any)?.id && 
     Date.now() - viewer.lastSeen < 30000
   );
 

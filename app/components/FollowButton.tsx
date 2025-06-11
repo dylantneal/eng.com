@@ -21,9 +21,9 @@ export default function FollowButton({
   async function toggle() {
     startTransition(async () => {
       if (isFollowing) {
-        await supabase.from('follows').delete().eq('followee_id', followeeId)
+        await supabase.from<any>('follows' as any).delete().eq('followee_id', followeeId)
       } else {
-        await supabase.from('follows').insert({ followee_id: followeeId })
+        await supabase.from<any>('follows' as any).insert({ followee_id: followeeId })
       }
       setIsFollowing((p) => !p)
     })
