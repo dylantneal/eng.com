@@ -36,9 +36,9 @@ export default function PresenceIndicator({ projectId, className = '' }: Presenc
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             projectId,
-            userId: (session.user as any).id,
-            handle: session.user?.name ?? 'Anonymous',
-            avatar_url: session.user?.image,
+            userId: (session!.user as any).id,
+            handle: session!.user?.name ?? 'Anonymous',
+            avatar_url: session!.user?.image,
           }),
         });
 
@@ -84,7 +84,7 @@ export default function PresenceIndicator({ projectId, className = '' }: Presenc
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId,
-          userId: (session.user as any).id,
+          userId: (session!.user as any).id,
         }),
       }).catch(console.error);
     };
@@ -92,7 +92,7 @@ export default function PresenceIndicator({ projectId, className = '' }: Presenc
 
   // Filter out current user and remove stale viewers (older than 30 seconds)
   const activeViewers = viewers.filter(viewer => 
-    viewer.id !== (session?.user as any)?.id && 
+    viewer.id !== (session!.user as any)?.id && 
     Date.now() - viewer.lastSeen < 30000
   );
 

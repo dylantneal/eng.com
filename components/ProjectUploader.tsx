@@ -67,7 +67,7 @@ export default function ProjectUploader() {
     const { data: project, error: insertErr } = await supabase
       .from('projects')
       .insert({
-        owner_id: session.user.id,
+        owner_id: (session.user as any).id,
         title,
         slug,
         is_public: isPublic,

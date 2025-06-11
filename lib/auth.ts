@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 // Re-export authOptions for consistency
 export { authOptions } from '@/lib/authOptions';
@@ -357,4 +359,13 @@ export async function getUserCommunities(userId: string) {
     console.error('getUserCommunities error', error);
     return { success: false, error };
   }
+}
+
+// Helper: returns the session or throws 401 (for server actions)
+export async function requireUserSession() {
+  const session = await getServerSession(authOptions);
+  if (!session || !(session.user as any)?.id) {
+    throw new Error('Unauthenticated');
+  }
+  return session;
 } 
