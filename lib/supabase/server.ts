@@ -2,8 +2,10 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { SupabaseDB as Database } from '@/types/database';
 
-export const createClient = async () => {
-  const cookieStore = await cookies();
+// Allow passing in a pre-fetched cookie store (handy in Server Components that
+// already called `cookies()`), otherwise retrieve it lazily.
+export const createClient = (existingCookies?: any) => {
+  const cookieStore: any = existingCookies ?? cookies();
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,4 +31,15 @@ export const createClient = async () => {
   );
 };
 
-// Note: supabaseServer should use createClient() function instead 
+// ---------------------------------------------------------------------------
+// Compatibility exports
+// ---------------------------------------------------------------------------
+
+// Some parts of the codebase (and perhaps older articles) still import
+// `createServerSupabaseClient` or `supabaseServer` from this module.  To avoid
+// touching dozens of files right now we simply provide thin aliases that
+// delegate to `createClient()` so that existing imports keep working without
+// any behavioural change.
+
+export const createServerSupabaseClient = createClient;
+export const supabaseServer = createClient; 
