@@ -4,12 +4,28 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, getCurrentUser, signIn, signUp, signOut, onAuthStateChange, getSupabaseClient } from '@/lib/auth';
 
 interface AuthContextType {
+  /* Auth state */
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ user: any; session: any; error: any }>;
-  signUp: (email: string, password: string, userData: Partial<User>) => Promise<{ user: any; error: any }>;
+
+  /* Basic auth helpers (legacy names kept for compatibility) */
+  signIn: (email: string, password: string) => Promise<{ user: any; session?: any; error: any }>;
+  signUp: (email: string, password: string, userData: Partial<User>) => Promise<{ user: any; session?: any; error: any }>;
   signOut: () => Promise<{ error: any }>;
   refreshUser: () => Promise<void>;
+
+  /* Aliases expected by older components */
+  login: (email: string, password: string) => Promise<{ user: any; session?: any; error: any }>;
+  register: (email: string, password: string, userData: Partial<User>) => Promise<{ user: any; session?: any; error: any }>;
+
+  /* Modal state (login / signup) */
+  showLoginModal: boolean;
+  showSignupModal: boolean;
+  setShowLoginModal: (show: boolean) => void;
+  setShowSignupModal: (show: boolean) => void;
+
+  /* Utility */
+  requireAuth: () => Promise<boolean>; // returns true if signed in, false otherwise
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,6 +41,10 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // local modal state for UI components
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showSignupModal, setShowSignupModal] = useState(false);
 
   // Function to refresh user data
   const refreshUser = async () => {
@@ -146,13 +166,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Utility to ensure user is logged in; if not, open login modal and return false
+  const requireAuth = async () => {
+    if (user) return true;
+    setShowLoginModal(true);
+    return false;
+  };
+
   const value: AuthContextType = {
     user,
     loading,
+
     signIn: handleSignIn,
     signUp: handleSignUp,
     signOut: handleSignOut,
-    refreshUser
+    refreshUser,
+
+    login: handleSignIn,
+    register: handleSignUp,
+
+    showLoginModal,
+    showSignupModal,
+    setShowLoginModal,
+    setShowSignupModal,
+
+    requireAuth,
   };
 
   return (

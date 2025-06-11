@@ -36,6 +36,24 @@ declare module '@/types/database' {
             }
           ];
         };
+        follows: {
+          Row: Record<string, any>;
+          Insert: Record<string, any>;
+          Update: Record<string, any>;
+          Relationships: [];
+        };
+        api_keys: {
+          Row: Record<string, any>;
+          Insert: Record<string, any>;
+          Update: Record<string, any>;
+          Relationships: [];
+        };
+        notification_settings: {
+          Row: Record<string, any>;
+          Insert: Record<string, any>;
+          Update: Record<string, any>;
+          Relationships: [];
+        };
       };
     };
   }

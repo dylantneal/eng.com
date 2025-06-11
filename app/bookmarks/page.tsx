@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/server';
 const notNull = <T,>(v: T | null | undefined): v is T => v != null;
 
 export default async function BookmarksPage() {
-  const supabase = await createClient();
+  const supabase = createClient();
 
   /* 1️⃣  Ensure the visitor is logged in */
   const {

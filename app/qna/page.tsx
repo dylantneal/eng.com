@@ -11,7 +11,7 @@ async function createQuestion(formData: FormData) {
   'use server';
 
   // const cookieStore = cookies(); // Not needed
-  const supabase = await createClient(); // Must await, and no argument needed
+  const supabase = createClient();
 
   // Or if your createClient is already wrapped like in the provided lib/supabase/server.ts:
   // const supabase = await createClient(); // Assuming your lib/supabase/server.ts createClient is async due to cookies()
@@ -67,7 +67,7 @@ type QuestionType = {
 };
 
 export default async function QnAPage() {
-  const supabase = await createClient();
+  const supabase = createClient();
 
   const { data: questions, error: questionsError } = await supabase
     .from('comments')

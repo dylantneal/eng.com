@@ -11,7 +11,7 @@ export default async function SettingsPage() {
     redirect('/signin?redirect=/settings');
   }
 
-  const supabase = await createClient();
+  const supabase = createClient();
   
   // Get user profile
   const { data: profile } = await supabase

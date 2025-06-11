@@ -9,7 +9,7 @@ import Card from '@/app/components/ui/Card';
 export const dynamic = 'force-dynamic';
 
 export default async function QuestionPage({ params }: { params: { id: string } }) {
-  const supabase = await createClient();
+  const supabase = createClient();
 
   const { data: question, error: qErr } = await supabase
     .from('comments')
