@@ -1,7 +1,7 @@
 /* Augments generated types with the new table */
 export type { Json } from './database'; // same import path
 
-declare module '@/types/database' {
+declare module '@/types/supabase' {
   interface Database {
     public: {
       Tables: Database['public']['Tables'] & {
