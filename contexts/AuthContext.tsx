@@ -25,7 +25,7 @@ interface AuthContextType {
   setShowSignupModal: (show: boolean) => void;
 
   /* Utility */
-  requireAuth: () => Promise<boolean>; // returns true if signed in, false otherwise
+  requireAuth: <T = void>(cb?: () => Promise<T> | T) => Promise<boolean | T>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -167,10 +167,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Utility to ensure user is logged in; if not, open login modal and return false
-  const requireAuth = async () => {
-    if (user) return true;
-    setShowLoginModal(true);
-    return false;
+  const requireAuth = async <T = void>(cb?: () => Promise<T> | T) => {
+    if (!user) {
+      setShowLoginModal(true);
+      return false;
+    }
+
+    if (cb) {
+      // If a callback was supplied, execute it and bubble up its result
+      return await cb();
+    }
+
+    return true;
   };
 
   const value: AuthContextType = {

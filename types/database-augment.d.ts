@@ -37,18 +37,66 @@ declare module '@/types/database' {
           ];
         };
         follows: {
-          Row: Record<string, any>;
-          Insert: Record<string, any>;
-          Update: Record<string, any>;
+          Row: {
+            id: string;
+            follower_id: string;
+            followee_id: string;
+            inserted_at: string | null;
+          };
+          Insert: {
+            id?: string;
+            follower_id: string;
+            followee_id: string;
+            inserted_at?: string | null;
+          };
+          Update: {
+            id?: string;
+            follower_id?: string;
+            followee_id?: string;
+            inserted_at?: string | null;
+          };
           Relationships: [];
         };
         api_keys: {
-          Row: Record<string, any>;
-          Insert: Record<string, any>;
-          Update: Record<string, any>;
+          Row: {
+            id: string;
+            user_id: string;
+            service_key: string;
+            created_at: string | null;
+          };
+          Insert: {
+            id?: string;
+            user_id: string;
+            service_key: string;
+            created_at?: string | null;
+          };
+          Update: {
+            id?: string;
+            user_id?: string;
+            service_key?: string;
+            created_at?: string | null;
+          };
           Relationships: [];
         };
         notification_settings: {
+          Row: {
+            id: string;
+            user_id: string;
+            email_digest: boolean;
+          };
+          Insert: {
+            id?: string;
+            user_id: string;
+            email_digest?: boolean;
+          };
+          Update: {
+            id?: string;
+            user_id?: string;
+            email_digest?: boolean;
+          };
+          Relationships: [];
+        };
+        project_versions: {
           Row: Record<string, any>;
           Insert: Record<string, any>;
           Update: Record<string, any>;
