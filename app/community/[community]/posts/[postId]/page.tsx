@@ -1,5 +1,10 @@
-import Link from 'next/link'
-import { notFound } from 'next/navigation'
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCommunityActions } from '@/app/hooks/useCommunityActions';
 import { 
   ArrowUpIcon, 
   ArrowDownIcon, 
@@ -8,12 +13,12 @@ import {
   BookmarkIcon,
   FlagIcon,
   PaperClipIcon
-} from '@heroicons/react/24/outline'
+} from '@heroicons/react/24/outline';
 import { 
   ArrowUpIcon as ArrowUpSolidIcon, 
   ArrowDownIcon as ArrowDownSolidIcon,
   CheckCircleIcon 
-} from '@heroicons/react/24/solid'
+} from '@heroicons/react/24/solid';
 
 interface PostPageProps {
   params: Promise<{
@@ -22,8 +27,34 @@ interface PostPageProps {
   }>
 }
 
+interface PostData {
+  id: string;
+  title: string;
+  body: string;
+  community_name: string;
+  community_display_name: string;
+  community_color: string;
+  author_handle: string;
+  post_type: string;
+  upvotes: number;
+  downvotes: number;
+  user_vote: 'upvote' | 'downvote' | null;
+  comment_count: number;
+  created_at: string;
+  updated_at: string;
+  tags: string[];
+  is_solved: boolean;
+  is_locked: boolean;
+  attachments: Array<{
+    name: string;
+    size: string;
+    type: string;
+  }>;
+  images: string[];
+}
+
 // Sample post data
-const samplePost = {
+const samplePost: PostData = {
   id: 'mech-1',
   title: 'How to calculate the required torque for a ball screw actuator?',
   body: `I need to size a ball screw for a CNC machine application. The specifications are:
@@ -57,7 +88,7 @@ Any help would be greatly appreciated!`,
   post_type: 'question',
   upvotes: 34,
   downvotes: 2,
-  user_vote: null, // 'upvote', 'downvote', or null
+  user_vote: null,
   comment_count: 18,
   created_at: '2024-12-08T09:15:00Z',
   updated_at: '2024-12-08T09:15:00Z',
@@ -72,7 +103,7 @@ Any help would be greatly appreciated!`,
     }
   ],
   images: [
-    '/api/placeholder/600/400'
+    'https://picsum.photos/seed/ball-screw-cnc/600/400'
   ]
 }
 
@@ -183,7 +214,19 @@ function formatTimeAgo(dateString: string) {
   return date.toLocaleDateString()
 }
 
-function Comment({ comment, depth = 0 }: { comment: any, depth?: number }) {
+function Comment({ 
+  comment, 
+  depth = 0, 
+  onVote, 
+  onReply,
+  isLoading 
+}: { 
+  comment: any, 
+  depth?: number,
+  onVote: (commentId: string, voteType: 'upvote' | 'downvote') => void,
+  onReply: (commentId: string) => void,
+  isLoading: (key: string) => boolean
+}) {
   const marginLeft = depth * 24 // 24px per level
   
   return (
@@ -215,7 +258,9 @@ function Comment({ comment, depth = 0 }: { comment: any, depth?: number }) {
         <div className="flex items-center space-x-4 text-sm">
           <div className="flex items-center space-x-1">
             <button 
-              className={`p-1 rounded hover:bg-gray-100 transition-colors ${
+              onClick={() => onVote(comment.id, 'upvote')}
+              disabled={isLoading(`comment-vote-${comment.id}`)}
+              className={`p-1 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 ${
                 comment.user_vote === 'upvote' ? 'text-orange-500' : 'text-gray-400'
               }`}
             >
@@ -228,7 +273,9 @@ function Comment({ comment, depth = 0 }: { comment: any, depth?: number }) {
               {comment.upvotes - comment.downvotes}
             </span>
             <button 
-              className={`p-1 rounded hover:bg-gray-100 transition-colors ${
+              onClick={() => onVote(comment.id, 'downvote')}
+              disabled={isLoading(`comment-vote-${comment.id}`)}
+              className={`p-1 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 ${
                 comment.user_vote === 'downvote' ? 'text-blue-500' : 'text-gray-400'
               }`}
             >
@@ -239,7 +286,10 @@ function Comment({ comment, depth = 0 }: { comment: any, depth?: number }) {
             </button>
           </div>
           
-          <button className="text-gray-500 hover:text-gray-700 font-medium">
+          <button 
+            onClick={() => onReply(comment.id)}
+            className="text-gray-500 hover:text-gray-700 font-medium"
+          >
             Reply
           </button>
           
@@ -257,27 +307,273 @@ function Comment({ comment, depth = 0 }: { comment: any, depth?: number }) {
       
       {/* Render child comments */}
       {comment.children && comment.children.map((child: any) => (
-        <Comment key={child.id} comment={child} depth={depth + 1} />
+        <Comment 
+          key={child.id} 
+          comment={child} 
+          depth={depth + 1} 
+          onVote={onVote}
+          onReply={onReply}
+          isLoading={isLoading}
+        />
       ))}
     </div>
   )
 }
 
-export default async function PostPage({ params }: PostPageProps) {
-  const resolvedParams = await params
-  const { community, postId } = resolvedParams
-  
-  // In a real app, fetch post data from database
-  const post = samplePost
-  const comments = sampleComments
-  
-  if (!post) {
-    notFound()
+export default function PostPage({ params }: PostPageProps) {
+  // All hooks must be called at the top level, before any conditional returns
+  const [resolvedParams, setResolvedParams] = useState<{ community: string; postId: string } | null>(null);
+  const [post, setPost] = useState(samplePost);
+  const [comments, setComments] = useState(sampleComments);
+  const [commentText, setCommentText] = useState('');
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [isSaved, setIsSaved] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  const { user } = useAuth();
+  const {
+    voteOnPost,
+    voteOnComment,
+    savePost,
+    reportPost,
+    createComment,
+    sharePost,
+    isLoading,
+    isAuthenticated
+  } = useCommunityActions();
+
+  // All useEffect hooks must be called unconditionally
+  useEffect(() => {
+    params.then(setResolvedParams);
+  }, [params]);
+
+  // Clear messages after 3 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  // Early returns only after all hooks are called
+  if (!resolvedParams) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-lg text-gray-600">Loading...</div>
+      </div>
+    );
   }
+
+  const { community, postId } = resolvedParams;
+
+  // Handle post not found case without calling notFound() which can cause issues
+  if (!post) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Post Not Found</h1>
+          <p className="text-gray-600 mb-4">The post you're looking for doesn't exist.</p>
+          <Link 
+            href={`/community/${community}`}
+            className="text-blue-600 hover:text-blue-800 underline"
+          >
+            Return to Community
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const handlePostVote = async (voteType: 'upvote' | 'downvote') => {
+    try {
+      const currentState = {
+        upvotes: post.upvotes,
+        downvotes: post.downvotes,
+        userVote: post.user_vote as 'upvote' | 'downvote' | null
+      };
+
+      const newState = await voteOnPost(post.id, voteType, currentState);
+      
+      setPost(prev => ({
+        ...prev,
+        upvotes: newState.upvotes,
+        downvotes: newState.downvotes,
+        user_vote: newState.userVote
+      }));
+
+      if (!user) {
+        setMessage({ type: 'success', text: 'Vote recorded (demo mode)' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to vote' });
+    }
+  };
+
+  const handleCommentVote = async (commentId: string, voteType: 'upvote' | 'downvote') => {
+    try {
+      // Find the comment in the nested structure
+      const findAndUpdateComment = (comments: any[], id: string): any[] => {
+        return comments.map(comment => {
+          if (comment.id === id) {
+            const currentState = {
+              upvotes: comment.upvotes,
+              downvotes: comment.downvotes,
+              userVote: comment.user_vote as 'upvote' | 'downvote' | null
+            };
+
+            // This is async but we'll handle it optimistically
+            voteOnComment(id, voteType, currentState).then(newState => {
+              setComments(prevComments => {
+                const updateComment = (comments: any[]): any[] => {
+                  return comments.map(c => {
+                    if (c.id === id) {
+                      return {
+                        ...c,
+                        upvotes: newState.upvotes,
+                        downvotes: newState.downvotes,
+                        user_vote: newState.userVote
+                      };
+                    }
+                    if (c.children) {
+                      return { ...c, children: updateComment(c.children) };
+                    }
+                    return c;
+                  });
+                };
+                return updateComment(prevComments);
+              });
+            });
+
+            return comment;
+          }
+          if (comment.children) {
+            return { ...comment, children: findAndUpdateComment(comment.children, id) };
+          }
+          return comment;
+        });
+      };
+
+      setComments(prevComments => findAndUpdateComment(prevComments, commentId));
+    } catch (error) {
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to vote' });
+    }
+  };
+
+  const handleCommentSubmit = async () => {
+    if (!commentText.trim()) {
+      setMessage({ type: 'error', text: 'Please enter a comment' });
+      return;
+    }
+
+    try {
+      const newComment = await createComment(post.id, commentText);
+      
+      // Add the new comment to the list
+      setComments(prev => [...prev, {
+        ...newComment,
+        author_handle: user?.display_name || user?.username || 'Demo User',
+        children: [],
+        depth: 0
+      }]);
+      
+      setCommentText('');
+      setMessage({ 
+        type: 'success', 
+        text: user ? 'Comment added successfully!' : 'Comment added (demo mode)!' 
+      });
+      
+      // Update comment count
+      setPost(prev => ({
+        ...prev,
+        comment_count: prev.comment_count + 1
+      }));
+    } catch (error) {
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to create comment' });
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      const newSavedState = await savePost(post.id, isSaved);
+      setIsSaved(newSavedState);
+      setMessage({ 
+        type: 'success', 
+        text: user 
+          ? (newSavedState ? 'Post saved!' : 'Post unsaved!') 
+          : (newSavedState ? 'Post saved (demo mode)!' : 'Post unsaved (demo mode)!')
+      });
+    } catch (error) {
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to save post' });
+    }
+  };
+
+  const handleReport = async () => {
+    if (!reportReason.trim()) {
+      setMessage({ type: 'error', text: 'Please select a reason for reporting' });
+      return;
+    }
+
+    try {
+      await reportPost(post.id, reportReason, reportDetails);
+      setShowReportModal(false);
+      setReportReason('');
+      setReportDetails('');
+      setMessage({ 
+        type: 'success', 
+        text: user ? 'Report submitted successfully' : 'Report submitted (demo mode)' 
+      });
+    } catch (error) {
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to report post' });
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await sharePost(post.id, post.title);
+      setMessage({ type: 'success', text: 'Post shared!' });
+    } catch (error) {
+      // Sharing was cancelled or failed, no need to show error
+    }
+  };
+
+  const handleReply = (commentId: string) => {
+    // For now, just focus on the main comment box
+    // In a full implementation, you'd show a reply form under the specific comment
+    setMessage({ type: 'success', text: 'Reply functionality coming soon!' });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Message Toast */}
+      {message && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
+          message.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`}>
+          {message.text}
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Demo mode indicator */}
+        {!user && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-blue-700">
+                  <strong>Demo Mode:</strong> You're viewing the platform without authentication. 
+                  All interactions work but won't be saved to the database.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Breadcrumb */}
         <div className="mb-6">
           <nav className="flex items-center space-x-2 text-sm text-gray-500">
@@ -306,7 +602,9 @@ export default async function PostPage({ params }: PostPageProps) {
                   {/* Vote Section */}
                   <div className="flex flex-col items-center space-y-1 min-w-0">
                     <button 
-                      className={`p-2 rounded hover:bg-gray-100 transition-colors ${
+                      onClick={() => handlePostVote('upvote')}
+                      disabled={isLoading(`post-vote-${post.id}`)}
+                      className={`p-2 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 ${
                         post.user_vote === 'upvote' ? 'text-orange-500 bg-orange-50' : 'text-gray-400'
                       }`}
                     >
@@ -319,7 +617,9 @@ export default async function PostPage({ params }: PostPageProps) {
                       {post.upvotes - post.downvotes}
                     </span>
                     <button 
-                      className={`p-2 rounded hover:bg-gray-100 transition-colors ${
+                      onClick={() => handlePostVote('downvote')}
+                      disabled={isLoading(`post-vote-${post.id}`)}
+                      className={`p-2 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 ${
                         post.user_vote === 'downvote' ? 'text-blue-500 bg-blue-50' : 'text-gray-400'
                       }`}
                     >
@@ -372,6 +672,7 @@ export default async function PostPage({ params }: PostPageProps) {
                             src={image}
                             alt={`Post image ${index + 1}`}
                             className="max-w-full h-auto rounded-lg border border-gray-200"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           />
                         ))}
                       </div>
@@ -409,17 +710,29 @@ export default async function PostPage({ params }: PostPageProps) {
                         {post.comment_count} comments
                       </span>
                       
-                      <button className="flex items-center hover:text-gray-700">
+                      <button 
+                        onClick={handleShare}
+                        className="flex items-center hover:text-gray-700"
+                      >
                         <ShareIcon className="w-4 h-4 mr-1" />
                         Share
                       </button>
                       
-                      <button className="flex items-center hover:text-gray-700">
+                      <button 
+                        onClick={handleSave}
+                        disabled={isLoading(`post-save-${post.id}`)}
+                        className={`flex items-center hover:text-gray-700 disabled:opacity-50 ${
+                          isSaved ? 'text-blue-600' : ''
+                        }`}
+                      >
                         <BookmarkIcon className="w-4 h-4 mr-1" />
-                        Save
+                        {isSaved ? 'Saved' : 'Save'}
                       </button>
                       
-                      <button className="flex items-center hover:text-gray-700">
+                      <button 
+                        onClick={() => setShowReportModal(true)}
+                        className="flex items-center hover:text-gray-700"
+                      >
                         <FlagIcon className="w-4 h-4 mr-1" />
                         Report
                       </button>
@@ -434,13 +747,19 @@ export default async function PostPage({ params }: PostPageProps) {
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Add a comment</h3>
                 <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
                   className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   rows={4}
                   placeholder="Share your thoughts or help solve this problem..."
                 />
                 <div className="flex justify-end mt-3">
-                  <button className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
-                    Comment
+                  <button 
+                    onClick={handleCommentSubmit}
+                    disabled={isLoading(`comment-create-${post.id}`) || !commentText.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading(`comment-create-${post.id}`) ? 'Posting...' : 'Comment'}
                   </button>
                 </div>
               </div>
@@ -452,7 +771,13 @@ export default async function PostPage({ params }: PostPageProps) {
                 Comments ({comments.length})
               </h3>
               {comments.map((comment) => (
-                <Comment key={comment.id} comment={comment} />
+                <Comment 
+                  key={comment.id} 
+                  comment={comment} 
+                  onVote={handleCommentVote}
+                  onReply={handleReply}
+                  isLoading={isLoading}
+                />
               ))}
             </div>
           </div>
@@ -505,6 +830,62 @@ export default async function PostPage({ params }: PostPageProps) {
           </div>
         </div>
       </div>
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Report Post</h3>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason for reporting
+              </label>
+              <select
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select a reason</option>
+                <option value="spam">Spam</option>
+                <option value="harassment">Harassment</option>
+                <option value="inappropriate">Inappropriate content</option>
+                <option value="misinformation">Misinformation</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Additional details (optional)
+              </label>
+              <textarea
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={3}
+                placeholder="Provide more details about why you're reporting this post..."
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReport}
+                disabled={isLoading(`post-report-${post.id}`) || !reportReason}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading(`post-report-${post.id}`) ? 'Reporting...' : 'Submit Report'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 

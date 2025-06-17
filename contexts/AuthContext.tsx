@@ -1,158 +1,117 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, getCurrentUser, signIn, signUp, signOut, onAuthStateChange, getSupabaseClient } from '@/lib/auth';
+import { useSession, signIn as nextAuthSignIn, signOut as nextAuthSignOut } from 'next-auth/react';
+import { AuthUser, UseAuthResult } from '@/lib/auth-middleware';
 
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ user: any; session: any; error: any }>;
-  signUp: (email: string, password: string, userData: Partial<User>) => Promise<{ user: any; error: any }>;
-  signOut: () => Promise<{ error: any }>;
-  refreshUser: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
+const AuthContext = createContext<UseAuthResult | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: session, status, update } = useSession();
+  const [error, setError] = useState<string | null>(null);
 
-  // Function to refresh user data
-  const refreshUser = async () => {
+  // Convert NextAuth session to our AuthUser type
+  const user: AuthUser | null = session?.user ? {
+    id: (session.user as any).id,
+    email: session.user.email!,
+    username: (session.user as any).username,
+    display_name: (session.user as any).display_name || session.user.name,
+    plan: (session.user as any).plan || 'FREE',
+    is_verified: (session.user as any).is_verified || false,
+    email_verified: (session.user as any).email_verified || false,
+    profile_complete: (session.user as any).profile_complete || false,
+    is_banned: (session.user as any).is_banned || false,
+  } : null;
+
+  const loading = status === 'loading';
+
+  const signIn = async (email: string, password: string): Promise<void> => {
     try {
-      console.log('🔄 Refreshing user data...');
-      const userData = await getCurrentUser();
-      setUser(userData);
-      console.log('✅ User data refreshed:', userData ? 'User found' : 'No user');
-    } catch (error) {
-      console.error('❌ Error refreshing user:', error);
-      setUser(null);
+      setError(null);
+      const result = await nextAuthSignIn('credentials', {
+        email,
+        password,
+        action: 'signin',
+        redirect: false,
+      });
+
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+
+      if (!result?.ok) {
+        throw new Error('Sign in failed');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Sign in failed';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
-  // Load user on mount
+  const signUp = async (email: string, password: string, userData?: any): Promise<any> => {
+    try {
+      setError(null);
+      const result = await nextAuthSignIn('credentials', {
+        email,
+        password,
+        action: 'signup',
+        userData: userData ? JSON.stringify(userData) : undefined,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        return { error: { message: result.error }, user: null };
+      }
+
+      if (!result?.ok) {
+        return { error: { message: 'Sign up failed' }, user: null };
+      }
+
+      return { user: result, error: null };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Sign up failed';
+      setError(errorMessage);
+      return { error: { message: errorMessage }, user: null };
+    }
+  };
+
+  const signOut = async (): Promise<void> => {
+    try {
+      setError(null);
+      await nextAuthSignOut({ redirect: false });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Sign out failed';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
+
+  const refetch = async (): Promise<void> => {
+    try {
+      setError(null);
+      await update();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to refresh session';
+      setError(errorMessage);
+    }
+  };
+
+  // Clear error when session changes
   useEffect(() => {
-    let mounted = true;
-
-    const loadUser = async () => {
-      try {
-        console.log('🔄 Loading initial user...');
-        const userData = await getCurrentUser();
-        
-        if (mounted) {
-          setUser(userData);
-          setLoading(false);
-          console.log('✅ Initial user loaded:', userData ? 'User found' : 'No user');
-        }
-      } catch (error) {
-        console.error('❌ Error loading initial user:', error);
-        if (mounted) {
-          setUser(null);
-          setLoading(false);
-        }
-      }
-    };
-
-    loadUser();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // Listen to auth state changes
-  useEffect(() => {
-    console.log('🔄 Setting up auth state listener...');
-    
-    const { data: { subscription } } = onAuthStateChange(async (event, session) => {
-      console.log('🔄 Auth state changed:', event, session ? 'Session exists' : 'No session');
-      
-      if (event === 'SIGNED_IN' && session) {
-        console.log('✅ User signed in, refreshing user data...');
-        await refreshUser();
-      } else if (event === 'SIGNED_OUT') {
-        console.log('✅ User signed out, clearing user data...');
-        setUser(null);
-      } else if (event === 'TOKEN_REFRESHED' && session) {
-        console.log('🔄 Token refreshed, updating user data...');
-        await refreshUser();
-      }
-    });
-
-    return () => {
-      console.log('🔄 Cleaning up auth state listener...');
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  // Wrapper functions that refresh user data after auth operations
-  const handleSignIn = async (email: string, password: string) => {
-    try {
-      console.log('🔄 Signing in...');
-      const result = await signIn(email, password);
-      
-      if (result.user && !result.error) {
-        console.log('✅ Sign in successful, refreshing user...');
-        await refreshUser();
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Sign in error:', error);
-      return { user: null, session: null, error };
+    if (session) {
+      setError(null);
     }
-  };
+  }, [session]);
 
-  const handleSignUp = async (email: string, password: string, userData: Partial<User>) => {
-    try {
-      console.log('🔄 Signing up...');
-      const result = await signUp(email, password, userData);
-      
-      if (result.user && !result.error) {
-        console.log('✅ Sign up successful, refreshing user...');
-        await refreshUser();
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Sign up error:', error);
-      return { user: null, error };
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      console.log('🔄 Signing out...');
-      const result = await signOut();
-      
-      if (!result.error) {
-        console.log('✅ Sign out successful');
-        setUser(null);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Sign out error:', error);
-      return { error };
-    }
-  };
-
-  const value: AuthContextType = {
+  const value: UseAuthResult = {
     user,
     loading,
-    signIn: handleSignIn,
-    signUp: handleSignUp,
-    signOut: handleSignOut,
-    refreshUser
+    error,
+    signIn,
+    signUp,
+    signOut,
+    refetch,
   };
 
   return (
@@ -160,4 +119,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+export function useAuth(): UseAuthResult {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+// Convenience hooks for common auth checks
+export function useAuthUser(): AuthUser | null {
+  const { user } = useAuth();
+  return user;
+}
+
+export function useIsAuthenticated(): boolean {
+  const { user, loading } = useAuth();
+  return !loading && !!user;
+}
+
+export function useRequireAuth(): AuthUser {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    throw new Error('Auth is still loading');
+  }
+  
+  if (!user) {
+    throw new Error('Authentication required');
+  }
+  
+  return user;
+}
+
+// Plan-based access hooks
+export function useCanCreateProject(): boolean {
+  const { user } = useAuth();
+  if (!user) return false;
+  
+  // TODO: Check current project count from API
+  return !user.is_banned;
+}
+
+export function useCanAccessMarketplace(): boolean {
+  const { user } = useAuth();
+  if (!user) return false;
+  
+  return user.is_verified && user.profile_complete;
+}
+
+export function useIsVerified(): boolean {
+  const { user } = useAuth();
+  return !!user?.is_verified;
+}
+
+export function useIsPro(): boolean {
+  const { user } = useAuth();
+  return user?.plan === 'PRO' || user?.plan === 'ENTERPRISE';
 } 

@@ -94,7 +94,7 @@ export default function OnboardingPage() {
                 required
                 value={profileData.name}
                 onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
                 placeholder="e.g., Alex Johnson"
               />
             </div>
@@ -108,7 +108,7 @@ export default function OnboardingPage() {
                 required
                 value={profileData.handle}
                 onChange={(e) => setProfileData(prev => ({ ...prev, handle: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '') }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
                 placeholder="e.g., alexjohnson"
               />
             </div>
@@ -121,7 +121,7 @@ export default function OnboardingPage() {
                 rows={3}
                 value={profileData.bio}
                 onChange={(e) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
                 placeholder="Tell the community about yourself and your engineering interests..."
               />
             </div>
@@ -134,7 +134,7 @@ export default function OnboardingPage() {
                 required
                 value={profileData.primaryDomain}
                 onChange={(e) => setProfileData(prev => ({ ...prev, primaryDomain: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
               >
                 <option value="mechanical">Mechanical Engineering</option>
                 <option value="electrical">Electrical Engineering</option>
@@ -155,7 +155,7 @@ export default function OnboardingPage() {
                 required
                 value={profileData.experienceLevel}
                 onChange={(e) => setProfileData(prev => ({ ...prev, experienceLevel: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
               >
                 <option value="student">Student</option>
                 <option value="entry">0-2 years</option>

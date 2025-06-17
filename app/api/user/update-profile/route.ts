@@ -1,19 +1,15 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { getServerAuth } from '@/lib/auth-server';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { user, supabase } = await getServerAuth();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
     const { name, handle, bio, avatar_url } = body;
-
-    const supabase = supabaseBrowser;
 
     // Check if handle is already taken by another user
     if (handle) {
@@ -21,7 +17,7 @@ export async function POST(request: NextRequest) {
         .from('profiles')
         .select('id')
         .eq('handle', handle)
-        .neq('id', session.user.id)
+        .neq('id', user.id)
         .single();
 
       if (existingProfile) {
@@ -33,7 +29,7 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase
       .from('profiles')
       .upsert({
-        id: session.user.id,
+        id: user.id,
         handle: handle || null,
         bio: bio || null,
         avatar_url: avatar_url || null,

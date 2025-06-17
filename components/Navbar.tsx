@@ -14,10 +14,8 @@ export default function Navbar() {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await signOut();
-      if (!error) {
-        router.push('/');
-      }
+      await signOut();
+      router.push('/');
     } catch (error) {
       console.error('Sign out error:', error);
     }

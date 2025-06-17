@@ -151,8 +151,10 @@ export type Database = {
       }
       communities: {
         Row: {
+          color: string | null
           created_at: string | null
           description: string | null
+          display_name: string | null
           icon: string | null
           id: string
           member_count: number | null
@@ -161,8 +163,10 @@ export type Database = {
           slug: string
         }
         Insert: {
+          color?: string | null
           created_at?: string | null
           description?: string | null
+          display_name?: string | null
           icon?: string | null
           id?: string
           member_count?: number | null
@@ -171,8 +175,10 @@ export type Database = {
           slug: string
         }
         Update: {
+          color?: string | null
           created_at?: string | null
           description?: string | null
+          display_name?: string | null
           icon?: string | null
           id?: string
           member_count?: number | null
@@ -221,8 +227,15 @@ export type Database = {
           created_at: string | null
           downvotes: number | null
           id: string
+          images: string[] | null
+          is_pinned: boolean | null
+          post_type: string | null
+          tags: string[] | null
           title: string
+          updated_at: string | null
           upvotes: number | null
+          user_id: string | null
+          vote_count: number | null
         }
         Insert: {
           author_id?: string | null
@@ -232,8 +245,15 @@ export type Database = {
           created_at?: string | null
           downvotes?: number | null
           id?: string
+          images?: string[] | null
+          is_pinned?: boolean | null
+          post_type?: string | null
+          tags?: string[] | null
           title: string
+          updated_at?: string | null
           upvotes?: number | null
+          user_id?: string | null
+          vote_count?: number | null
         }
         Update: {
           author_id?: string | null
@@ -243,8 +263,15 @@ export type Database = {
           created_at?: string | null
           downvotes?: number | null
           id?: string
+          images?: string[] | null
+          is_pinned?: boolean | null
+          post_type?: string | null
+          tags?: string[] | null
           title?: string
+          updated_at?: string | null
           upvotes?: number | null
+          user_id?: string | null
+          vote_count?: number | null
         }
         Relationships: [
           {
@@ -261,6 +288,13 @@ export type Database = {
             referencedRelation: "communities"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -268,15 +302,24 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           comment_karma: number | null
+          company: string | null
           created_at: string | null
           display_name: string | null
           email: string | null
+          engineering_discipline: string | null
+          experience_level: string | null
+          github_username: string | null
           handle: string | null
           id: string
+          is_banned: boolean | null
           is_pro: boolean | null
           is_verified: boolean | null
+          job_title: string | null
           joined_communities: string[] | null
           last_active: string | null
+          lifetime_cents: number | null
+          linkedin_username: string | null
+          location: string | null
           name: string | null
           plan: string | null
           post_karma: number | null
@@ -285,22 +328,34 @@ export type Database = {
           reputation: number | null
           saved_posts: string[] | null
           stripe_account_id: string | null
+          stripe_customer_id: string | null
+          tip_jar_on: boolean | null
           updated_at: string | null
           username: string | null
+          website: string | null
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
           comment_karma?: number | null
+          company?: string | null
           created_at?: string | null
           display_name?: string | null
           email?: string | null
+          engineering_discipline?: string | null
+          experience_level?: string | null
+          github_username?: string | null
           handle?: string | null
           id: string
+          is_banned?: boolean | null
           is_pro?: boolean | null
           is_verified?: boolean | null
+          job_title?: string | null
           joined_communities?: string[] | null
           last_active?: string | null
+          lifetime_cents?: number | null
+          linkedin_username?: string | null
+          location?: string | null
           name?: string | null
           plan?: string | null
           post_karma?: number | null
@@ -309,22 +364,34 @@ export type Database = {
           reputation?: number | null
           saved_posts?: string[] | null
           stripe_account_id?: string | null
+          stripe_customer_id?: string | null
+          tip_jar_on?: boolean | null
           updated_at?: string | null
           username?: string | null
+          website?: string | null
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
           comment_karma?: number | null
+          company?: string | null
           created_at?: string | null
           display_name?: string | null
           email?: string | null
+          engineering_discipline?: string | null
+          experience_level?: string | null
+          github_username?: string | null
           handle?: string | null
           id?: string
+          is_banned?: boolean | null
           is_pro?: boolean | null
           is_verified?: boolean | null
+          job_title?: string | null
           joined_communities?: string[] | null
           last_active?: string | null
+          lifetime_cents?: number | null
+          linkedin_username?: string | null
+          location?: string | null
           name?: string | null
           plan?: string | null
           post_karma?: number | null
@@ -333,8 +400,11 @@ export type Database = {
           reputation?: number | null
           saved_posts?: string[] | null
           stripe_account_id?: string | null
+          stripe_customer_id?: string | null
+          tip_jar_on?: boolean | null
           updated_at?: string | null
           username?: string | null
+          website?: string | null
         }
         Relationships: []
       }
@@ -558,6 +628,16 @@ export type Database = {
           solved: number | null
           tags: string[] | null
           title: string | null
+        }
+        Relationships: []
+      }
+      schema_health: {
+        Row: {
+          has_display_name: number | null
+          has_email: number | null
+          has_username: number | null
+          record_count: number | null
+          table_name: string | null
         }
         Relationships: []
       }

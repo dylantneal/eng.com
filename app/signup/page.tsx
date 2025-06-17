@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import EngineeringBackground from '@/components/EngineeringBackground';
 
 export default function SignUpPage() {
+  const { signUp, user, loading } = useAuth();
+  const router = useRouter();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -19,35 +21,83 @@ export default function SignUpPage() {
     experienceLevel: 'entry' as 'student' | 'entry' | 'mid' | 'senior' | 'expert',
   });
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const { signUp } = useAuth();
-  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!loading && user) {
+      console.log('✅ User already authenticated, redirecting to dashboard...');
+      router.push('/dashboard');
+    }
+  }, [user, loading, router]);
+
+  // Don't render form if already authenticated or still loading
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        <EngineeringBackground />
+        <div className="max-w-2xl w-full space-y-8 p-10 bg-gray-800/50 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-700/50 relative z-10">
+          <div className="space-y-6">
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+            <p className="text-center text-gray-400">Checking authentication...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        <EngineeringBackground />
+        <div className="max-w-2xl w-full space-y-8 p-10 bg-gray-800/50 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-700/50 relative z-10">
+          <div className="space-y-6">
+            <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 backdrop-blur-sm">
+              <p className="text-green-300 text-center">Already signed in! Redirecting...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+    setError(null);
   };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
+    
+    // Double-check user isn't already authenticated
+    if (user) {
+      console.log('✅ User already authenticated, skipping sign-up');
+      router.push('/dashboard');
+      return;
+    }
+    
+    setIsLoading(true);
     setError(null);
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
-      setLoading(false);
+      setIsLoading(false);
       return;
     }
 
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
-      setLoading(false);
+      setIsLoading(false);
       return;
     }
 
     try {
+      console.log('🔄 Form submitting sign-up for:', formData.email);
       const result = await signUp(formData.email, formData.password, {
         username: formData.username,
         display_name: formData.displayName,
@@ -59,13 +109,19 @@ export default function SignUpPage() {
 
       if (result.error) {
         setError(result.error.message || 'Sign up failed');
+        setIsLoading(false);
+      } else if (result.user) {
+        console.log('✅ Sign-up successful, redirecting to dashboard...');
+        // Don't call setIsLoading(false) here - let the redirect happen
+        router.push('/dashboard');
       } else {
-        router.push('/auth'); // Redirect to success page or dashboard
+        setError('Sign-up failed. Please try again.');
+        setIsLoading(false);
       }
     } catch (error) {
+      console.error('❌ Sign up error:', error);
       setError('An unexpected error occurred');
-    } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   }
 
@@ -255,21 +311,21 @@ export default function SignUpPage() {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={isLoading}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all duration-200"
             >
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {isLoading ? 'Creating Account...' : 'Create Account'}
             </button>
           </div>
 
-          <div className="text-center">
-            <p className="text-sm text-gray-400">
-              Already have an account?{' '}
-              <Link href="/auth" className="font-medium text-blue-400 hover:text-blue-300">
-                Sign in
-              </Link>
-            </p>
-          </div>
+                      <div className="text-center">
+              <p className="text-sm text-gray-400">
+                Already have an account?{' '}
+                <Link href="/signin" className="font-medium text-blue-400 hover:text-blue-300">
+                  Sign in
+                </Link>
+              </p>
+            </div>
         </form>
       </div>
     </div>

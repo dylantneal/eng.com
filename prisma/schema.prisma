@@ -1,0 +1,398 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum ProjectStatus {
+  CONCEPT
+  IN_PROGRESS
+  COMPLETED
+  PUBLISHED
+}
+
+enum ComplexityLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum ProjectType {
+  DESIGN
+  PROTOTYPE
+  ANALYSIS
+  SIMULATION
+  MANUFACTURING
+  RESEARCH
+  TESTING
+}
+
+enum Role {
+  MEMBER
+  MODERATOR
+  ADMIN
+}
+
+enum PostType {
+  SHOWCASE
+  QUESTION
+  DISCUSSION
+  NEWS
+  TUTORIAL
+  PROJECT
+}
+
+enum VoteType {
+  UPVOTE
+  DOWNVOTE
+}
+
+// Core Models
+model Profile {
+  id                    String   @id @default(uuid()) @db.Uuid
+  email                 String   @unique
+  username              String   @unique
+  handle                String   @unique
+  displayName           String?  @map("display_name")
+  bio                   String?
+  avatarUrl             String?  @map("avatar_url")
+  coverImageUrl         String?  @map("cover_image_url")
+  
+  // Plan and permissions
+  plan                  Plan     @default(FREE)
+  isVerified            Boolean  @default(false) @map("is_verified")
+  isBanned              Boolean  @default(false) @map("is_banned")
+  
+  // Professional info
+  engineeringDiscipline String?  @map("engineering_discipline")
+  experienceLevel       String?  @map("experience_level")
+  company               String?
+  location              String?
+  website               String?
+  githubUsername        String?  @map("github_username")
+  linkedinUsername      String?  @map("linkedin_username")
+  
+  // Social
+  followerCount         Int      @default(0) @map("follower_count")
+  followingCount        Int      @default(0) @map("following_count")
+  projectCount          Int      @default(0) @map("project_count")
+  
+  // Reputation system
+  reputation            Int      @default(0)
+  postKarma             Int      @default(0) @map("post_karma")
+  commentKarma          Int      @default(0) @map("comment_karma")
+  
+  // Timestamps
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  lastActive            DateTime @default(now()) @map("last_active") @db.Timestamptz
+  
+  // JSON fields
+  preferences           Json     @default("{}")
+  joinedCommunities     String[] @default([]) @map("joined_communities")
+  savedPosts            String[] @default([]) @map("saved_posts")
+  
+  // Stripe integration
+  stripeCustomerId      String?  @map("stripe_customer_id")
+  stripeAccountId       String?  @map("stripe_account_id")
+  tipJarOn              Boolean  @default(true) @map("tip_jar_on")
+  lifetimeCents         Int      @default(0) @map("lifetime_cents")
+  
+  // Relations
+  ownedProjects         Project[]           @relation("ProjectOwner")
+  comments              Comment[]
+  posts                 Post[]
+  projectLikes          ProjectLike[]
+  postVotes             PostVote[]
+  followers             UserFollow[]        @relation("UserFollowing")
+  following             UserFollow[]        @relation("UserFollower")
+  communityMemberships  CommunityMembership[]
+  paymentsMade          Payment[]           @relation("PaymentPayer")
+  paymentsReceived      Payment[]           @relation("PaymentPayee")
+  createdCommunities    Community[]         @relation("CommunityCreator")
+  
+  @@map("profiles")
+  @@index([engineeringDiscipline])
+  @@index([isVerified])
+  @@index([reputation])
+  @@index([lastActive])
+}
+
+model Project {
+  id                    String        @id @default(uuid()) @db.Uuid
+  title                 String
+  slug                  String
+  description           String?
+  readme                String?
+  
+  // Engineering specific
+  engineeringDiscipline String?       @map("engineering_discipline")
+  projectType           ProjectType   @default(DESIGN) @map("project_type")
+  complexityLevel       ComplexityLevel @default(INTERMEDIATE) @map("complexity_level")
+  projectStatus         ProjectStatus @default(COMPLETED) @map("project_status")
+  
+  // Arrays for technologies and materials
+  technologies          String[]      @default([])
+  materials             String[]      @default([])
+  tags                  String[]      @default([])
+  cadFileFormats        String[]      @default([]) @map("cad_file_formats")
+  
+  // Settings
+  isPublic              Boolean       @default(true) @map("is_public")
+  isFeatured            Boolean       @default(false) @map("is_featured")
+  isVerified            Boolean       @default(false) @map("is_verified")
+  
+  // Media
+  thumbnailUrl          String?       @map("thumbnail_url")
+  galleryUrls           String[]      @default([]) @map("gallery_urls")
+  imageUrl              String?       @map("image_url")
+  
+  // External links
+  repositoryUrl         String?       @map("repository_url")
+  demoUrl               String?       @map("demo_url")
+  documentationUrl      String?       @map("documentation_url")
+  videoUrl              String?       @map("video_url")
+  
+  // Metadata
+  license               String        @default("MIT")
+  
+  // Metrics
+  viewCount             Int           @default(0) @map("view_count")
+  likeCount             Int           @default(0) @map("like_count")
+  downloadCount         Int           @default(0) @map("download_count")
+  bookmarkCount         Int           @default(0) @map("bookmark_count")
+  commentCount          Int           @default(0) @map("comment_count")
+  
+  // Ownership and versioning
+  ownerId               String        @map("owner_id") @db.Uuid
+  currentVersionId      String?       @map("current_version_id") @db.Uuid
+  
+  // Timestamps
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  publishedAt           DateTime?     @map("published_at") @db.Timestamptz
+  
+  // Relations
+  owner                 Profile       @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  versions              ProjectVersion[]
+  currentVersion        ProjectVersion? @relation("ProjectCurrentVersion", fields: [currentVersionId], references: [id])
+  comments              Comment[]
+  likes                 ProjectLike[]
+  
+  @@unique([ownerId, slug])
+  @@map("projects")
+  @@index([isPublic])
+  @@index([engineeringDiscipline])
+  @@index([projectType])
+  @@index([complexityLevel])
+  @@index([isFeatured])
+  @@index([technologies])
+  @@index([materials])
+  @@index([createdAt])
+  @@index([publishedAt])
+}
+
+model ProjectVersion {
+  id                    String   @id @default(uuid()) @db.Uuid
+  projectId             String   @map("project_id") @db.Uuid
+  versionNo             Int      @map("version_no")
+  versionNumber         String   @default("1.0.0") @map("version_number")
+  readmeMd              String?  @map("readme_md")
+  changelog             String?
+  files                 Json     @default("[]")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  
+  // Relations
+  project               Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  currentVersionProjects Project[] @relation("ProjectCurrentVersion")
+  
+  @@unique([projectId, versionNo])
+  @@map("project_versions")
+  @@index([projectId])
+}
+
+model Comment {
+  id                    String   @id @default(uuid()) @db.Uuid
+  body                  String
+  projectId             String?  @map("project_id") @db.Uuid
+  postId                String?  @map("post_id") @db.Uuid
+  userId                String   @map("user_id") @db.Uuid
+  parentId              String?  @map("parent_id") @db.Uuid
+  
+  // Metrics
+  upvotes               Int      @default(0)
+  downvotes             Int      @default(0)
+  
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  
+  // Relations
+  project               Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  post                  Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user                  Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent                Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies               Comment[] @relation("CommentReplies")
+  
+  @@map("comments")
+  @@index([projectId])
+  @@index([postId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Community {
+  id                    String   @id @default(uuid()) @db.Uuid
+  name                  String   @unique
+  displayName           String?  @map("display_name")
+  description           String?
+  icon                  String?
+  category              String   @default("engineering")
+  color                 String   @default("#3B82F6")
+  isPrivate             Boolean  @default(false) @map("is_private")
+  
+  // Metrics
+  memberCount           Int      @default(0) @map("member_count")
+  postCount             Int      @default(0) @map("post_count")
+  
+  // Ownership
+  createdBy             String?  @map("created_by") @db.Uuid
+  
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  
+  // Relations
+  creator               Profile? @relation("CommunityCreator", fields: [createdBy], references: [id])
+  posts                 Post[]
+  memberships           CommunityMembership[]
+  
+  @@map("communities")
+  @@index([category])
+  @@index([isPrivate])
+}
+
+model CommunityMembership {
+  id                    String    @id @default(uuid()) @db.Uuid
+  communityId           String    @map("community_id") @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  role                  Role      @default(MEMBER)
+  joinedAt              DateTime  @default(now()) @map("joined_at") @db.Timestamptz
+  
+  // Relations
+  community             Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user                  Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([communityId, userId])
+  @@map("community_memberships")
+}
+
+model Post {
+  id                    String   @id @default(uuid()) @db.Uuid
+  title                 String
+  content               String?
+  postType              PostType @default(DISCUSSION) @map("post_type")
+  communityId           String   @map("community_id") @db.Uuid
+  userId                String   @map("user_id") @db.Uuid
+  
+  // Metrics
+  upvotes               Int      @default(0)
+  downvotes             Int      @default(0)
+  voteCount             Int      @default(0) @map("vote_count")
+  commentCount          Int      @default(0) @map("comment_count")
+  viewCount             Int      @default(0) @map("view_count")
+  
+  // Status
+  isPinned              Boolean  @default(false) @map("is_pinned")
+  isLocked              Boolean  @default(false) @map("is_locked")
+  isRemoved             Boolean  @default(false) @map("is_removed")
+  isSolved              Boolean  @default(false) @map("is_solved")
+  
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  
+  // Relations
+  community             Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  author                Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments              Comment[]
+  votes                 PostVote[]
+  
+  @@map("posts")
+  @@index([communityId])
+  @@index([userId])
+  @@index([postType])
+  @@index([createdAt])
+  @@index([isPinned])
+}
+
+// Junction Tables
+model ProjectLike {
+  id                    String   @id @default(uuid()) @db.Uuid
+  projectId             String   @map("project_id") @db.Uuid
+  userId                String   @map("user_id") @db.Uuid
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  
+  // Relations
+  project               Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user                  Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([projectId, userId])
+  @@map("project_likes")
+}
+
+model PostVote {
+  id                    String   @id @default(uuid()) @db.Uuid
+  postId                String   @map("post_id") @db.Uuid
+  userId                String   @map("user_id") @db.Uuid
+  voteType              VoteType @map("vote_type")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  
+  // Relations
+  post                  Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user                  Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, userId])
+  @@map("post_votes")
+}
+
+model UserFollow {
+  id                    String   @id @default(uuid()) @db.Uuid
+  followerId            String   @map("follower_id") @db.Uuid
+  followingId           String   @map("following_id") @db.Uuid
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  
+  // Relations
+  follower              Profile  @relation("UserFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  following             Profile  @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+  
+  @@unique([followerId, followingId])
+  @@map("user_follows")
+}
+
+model Payment {
+  id                    String   @id @default(uuid()) @db.Uuid
+  payerId               String?  @map("payer_id") @db.Uuid
+  payeeId               String?  @map("payee_id") @db.Uuid
+  amountCents           Int      @map("amount_cents")
+  type                  String   // 'tip' or 'subscription'
+  stripePaymentIntent   String?  @map("stripe_payment_intent")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  
+  // Relations
+  payer                 Profile? @relation("PaymentPayer", fields: [payerId], references: [id])
+  payee                 Profile? @relation("PaymentPayee", fields: [payeeId], references: [id])
+  
+  @@map("payments")
+} 

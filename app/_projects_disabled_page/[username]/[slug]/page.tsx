@@ -2,7 +2,7 @@ import React from 'react';
 import { createClient } from '@/utils/supabase-server';
 import { notFound } from 'next/navigation';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/authOptions';
 import Markdown from 'react-markdown';
 import TipJar from '@/components/TipJar';
 import Comments from '@/components/Comments';

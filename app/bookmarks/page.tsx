@@ -1,10 +1,9 @@
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/authOptions';
 import { redirect } from 'next/navigation';
-import { supabaseServer } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import ProjectCard from '@/components/ProjectCard';
 import type { Database } from '@/types/supabase';
-import { createClient } from '@/lib/supabase/server';
 
 /* ───────── helper so .filter() narrows away null / undefined ───────── */
 const notNull = <T,>(v: T | null | undefined): v is T => v != null;

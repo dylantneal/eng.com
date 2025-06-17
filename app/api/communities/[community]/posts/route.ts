@@ -1,99 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
-
-// Fallback data when database is not available
-const fallbackPosts = {
-  'mechanical-engineering': [
-    {
-      id: '1',
-      title: 'How to calculate bearing loads in rotating machinery?',
-      content: 'I\'m working on a project involving rotating machinery and need help calculating the appropriate bearing loads for my design. The shaft rotates at 1800 RPM and carries a radial load of 500N. I\'ve been using the basic L10 life calculation but I\'m not sure if I\'m accounting for all the dynamic factors correctly. Any guidance on the proper methodology would be appreciated.',
-      post_type: 'question',
-      community_name: 'mechanical-engineering',
-      author_id: 'user-1',
-      tags: ['bearings', 'mechanics', 'calculations'],
-      difficulty_level: 'intermediate',
-      upvotes: 24,
-      downvotes: 2,
-      score: 22,
-      hot_score: 15.5,
-      comment_count: 8,
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      author: {
-        id: 'user-1',
-        username: 'mech_engineer_2024'
-      }
-    },
-    {
-      id: '2',
-      title: 'Best practices for thermal management in 3D printed enclosures?',
-      content: 'I\'m designing enclosures for electronic devices using 3D printing (PLA and PETG). The devices generate moderate heat (up to 60°C) and I\'m concerned about thermal management. What are the best practices for ventilation design, material selection, and heat dissipation in 3D printed enclosures?',
-      post_type: 'question',
-      community_name: 'mechanical-engineering',
-      author_id: 'user-3',
-      tags: ['3d-printing', 'thermal', 'enclosures', 'design'],
-      difficulty_level: 'intermediate',
-      upvotes: 31,
-      downvotes: 1,
-      score: 30,
-      hot_score: 18.7,
-      comment_count: 18,
-      created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-      author: {
-        id: 'user-3',
-        username: 'maker_pro'
-      }
-    }
-  ],
-  'electronics': [
-    {
-      id: '3',
-      title: '[Show & Tell] Custom PCB for IoT Weather Station',
-      content: 'Just finished designing and testing my first custom PCB for an IoT weather station project. Features include ESP32, multiple sensors (BME280, light sensor, rain detector), and solar charging capability. The board is 4-layer with proper ground planes and has been running stable for 2 months now. Happy to share the design files and lessons learned!',
-      post_type: 'show_and_tell',
-      community_name: 'electronics',
-      author_id: 'user-2',
-      tags: ['pcb-design', 'iot', 'weather-station', 'esp32'],
-      upvotes: 45,
-      downvotes: 1,
-      score: 44,
-      hot_score: 28.2,
-      comment_count: 12,
-      created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-      author: {
-        id: 'user-2',
-        username: 'circuit_wizard'
-      }
-    }
-  ],
-  'robotics': [
-    {
-      id: '4',
-      title: 'Quadruped robot gait optimization using genetic algorithms',
-      content: 'Spent the last 6 months developing a genetic algorithm to optimize quadruped robot gaits. The system can now automatically adapt walking patterns for different terrains and speeds. The robot uses 12 servo motors and an IMU for feedback. Performance improved by 40% in energy efficiency compared to hand-tuned gaits.',
-      post_type: 'show_and_tell',
-      community_name: 'robotics',
-      author_id: 'user-4',
-      tags: ['quadruped', 'gait', 'genetic-algorithm', 'optimization'],
-      difficulty_level: 'advanced',
-      upvotes: 67,
-      downvotes: 3,
-      score: 64,
-      hot_score: 42.1,
-      comment_count: 23,
-      created_at: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-      author: {
-        id: 'user-4',
-        username: 'robot_researcher'
-      }
-    }
-  ]
-};
 
 export async function GET(
   request: NextRequest,
@@ -104,15 +17,22 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const sort = searchParams.get('sort') || 'hot';
     const postType = searchParams.get('type');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const offset = (page - 1) * limit;
     
+    // Build the query
     let query = supabase
       .from('posts')
       .select(`
         *,
-        author:profiles(id, username, avatar_url),
-        community:communities(name, display_name, color)
-      `)
-      .eq('community_name', resolvedParams.community);
+        author:profiles!user_id(id, username, display_name, avatar_url),
+        community:communities!community_id(id, name, display_name, color),
+        _count:comments(count)
+      `, { count: 'exact' })
+      .eq('communities.name', resolvedParams.community)
+      .eq('is_removed', false)
+      .range(offset, offset + limit - 1);
 
     if (postType && postType !== 'all') {
       query = query.eq('post_type', postType);
@@ -124,33 +44,49 @@ export async function GET(
         query = query.order('created_at', { ascending: false });
         break;
       case 'top':
-        query = query.order('score', { ascending: false });
+        query = query.order('vote_count', { ascending: false });
         break;
       case 'hot':
       default:
-        query = query.order('hot_score', { ascending: false });
+        // Hot algorithm: combination of votes and recency
+        query = query
+          .order('vote_count', { ascending: false })
+          .order('created_at', { ascending: false });
         break;
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
-      console.log('Database not available, using fallback data:', error.message);
-      const fallbackData = fallbackPosts[resolvedParams.community as keyof typeof fallbackPosts] || [];
-      return NextResponse.json(fallbackData);
+      console.error('Database query error:', error);
+      return NextResponse.json({ 
+        error: 'Failed to fetch posts',
+        details: error.message 
+      }, { status: 500 });
     }
 
-    // If no data from database, return fallback
-    if (!data || data.length === 0) {
-      const fallbackData = fallbackPosts[resolvedParams.community as keyof typeof fallbackPosts] || [];
-      return NextResponse.json(fallbackData);
-    }
+    // Transform data to include comment count
+    const transformedData = data?.map(post => ({
+      ...post,
+      comment_count: post._count?.[0]?.count || 0,
+      _count: undefined
+    })) || [];
 
-    return NextResponse.json(data);
+    return NextResponse.json({
+      posts: transformedData,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        pages: Math.ceil((count || 0) / limit)
+      }
+    });
   } catch (error) {
-    console.log('Database connection failed, using fallback data:', error);
-    const fallbackData = fallbackPosts[resolvedParams.community as keyof typeof fallbackPosts] || [];
-    return NextResponse.json(fallbackData);
+    console.error('Unexpected error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
@@ -159,6 +95,11 @@ export async function POST(
   { params }: { params: Promise<{ community: string }> }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const resolvedParams = await params;
     const body = await request.json();
     const { 
@@ -166,49 +107,78 @@ export async function POST(
       content, 
       post_type, 
       tags, 
-      difficulty_level, 
-      author_id,
       attachments 
     } = body;
 
+    // First, get the community ID
+    const { data: community, error: communityError } = await supabase
+      .from('communities')
+      .select('id')
+      .eq('name', resolvedParams.community)
+      .single();
+
+    if (communityError || !community) {
+      return NextResponse.json({ 
+        error: 'Community not found' 
+      }, { status: 404 });
+    }
+
+    // Create the post
     const { data, error } = await supabase
       .from('posts')
       .insert([{
         title,
         content,
         post_type: post_type || 'discussion',
-        community_name: resolvedParams.community,
-        author_id,
+        community_id: community.id,
+        user_id: session.user.id,
         tags: tags || [],
-        difficulty_level,
         attachments: attachments || [],
         upvotes: 0,
         downvotes: 0,
-        score: 0,
-        hot_score: 0,
         comment_count: 0,
-        created_at: new Date().toISOString()
+        view_count: 0,
+        is_pinned: false,
+        is_locked: false,
+        is_removed: false,
+        is_solved: false
       }])
       .select(`
         *,
-        author:profiles(id, username, avatar_url),
-        community:communities(name, display_name, color)
+        author:profiles!user_id(id, username, display_name, avatar_url),
+        community:communities!community_id(id, name, display_name, color)
       `)
       .single();
 
     if (error) {
       console.error('Error creating post:', error);
-      return NextResponse.json({ error: 'Failed to create post' }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'Failed to create post',
+        details: error.message
+      }, { status: 500 });
     }
 
     // Update community post count
-    await supabase.rpc('increment_community_posts', { 
-      community_name: resolvedParams.community 
-    });
+    const { data: currentCommunity } = await supabase
+      .from('communities')
+      .select('post_count')
+      .eq('id', community.id)
+      .single();
+    
+    await supabase
+      .from('communities')
+      .update({ 
+        post_count: (currentCommunity?.post_count || 0) + 1,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', community.id);
 
     return NextResponse.json(data);
   } catch (error) {
     console.error('Unexpected error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 } 

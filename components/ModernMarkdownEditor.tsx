@@ -104,7 +104,7 @@ Describe the final outcome, performance, or key learnings.
               value={value}
               onChange={(e) => onChange(e.target.value)}
               placeholder="Write your project documentation in Markdown..."
-              className="w-full h-96 p-4 font-mono text-sm border-none focus:ring-0 resize-none"
+              className="w-full h-96 p-4 font-mono text-sm border-none focus:ring-0 resize-none text-gray-900 bg-white placeholder-gray-500"
               style={{ fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace' }}
             />
             

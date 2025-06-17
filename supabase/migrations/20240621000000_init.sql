@@ -57,12 +57,24 @@ alter table versions enable row level security;
 alter table comments enable row level security;
 alter table payments enable row level security;
 
-create policy "Public profiles are viewable" on profiles for select using (true);
-create policy "Users manage own profile"    on profiles for all
-  using (auth.uid() = id);
-
-create policy "Owner manages project"       on projects for all
-  using (auth.uid() = owner_id);
-
-create policy "Public projects are readable" on projects for select
-  using (is_public or auth.uid() = owner_id); 
+-- Create policies only if they don't already exist
+DO $$
+BEGIN
+    -- Profiles policies
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Public profiles are viewable') THEN
+        CREATE POLICY "Public profiles are viewable" ON profiles FOR SELECT USING (true);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Users manage own profile') THEN
+        CREATE POLICY "Users manage own profile" ON profiles FOR ALL USING (auth.uid() = id);
+    END IF;
+    
+    -- Projects policies
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'projects' AND policyname = 'Owner manages project') THEN
+        CREATE POLICY "Owner manages project" ON projects FOR ALL USING (auth.uid() = owner_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'projects' AND policyname = 'Public projects are readable') THEN
+        CREATE POLICY "Public projects are readable" ON projects FOR SELECT USING (is_public OR auth.uid() = owner_id);
+    END IF;
+END $$; 

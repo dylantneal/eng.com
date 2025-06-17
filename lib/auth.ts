@@ -95,9 +95,9 @@ export async function signIn(email: string, password: string) {
       password
     });
     if (error) throw error;
-    return { user: data.user, error: null };
+    return { user: data.user, session: data.session, error: null };
   } catch (error) {
-    return { user: null, error };
+    return { user: null, session: null, error };
   }
 }
 
@@ -357,4 +357,26 @@ export async function getUserCommunities(userId: string) {
     console.error('getUserCommunities error', error);
     return { success: false, error };
   }
-} 
+}
+
+// --- BEGIN: Debug/Dev utility stubs ---
+/**
+ * Stub for testSupabaseConnection used in debug-auth/page.tsx
+ */
+export async function testSupabaseConnection() {
+  // You can implement a real test if needed
+  return { success: true, message: 'Supabase connection test stub.' };
+}
+
+/**
+ * Stub for clearBrowserSession used in debug-auth/page.tsx
+ */
+export async function clearBrowserSession() {
+  // You can implement a real session clear if needed
+  if (typeof window !== 'undefined') {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  }
+  return { success: true, message: 'Browser session cleared (stub).' };
+}
+// --- END: Debug/Dev utility stubs --- 

@@ -39,7 +39,7 @@ const MOCK_PROJECTS = [
     slug: 'arduino-weather-station',
     title: 'Arduino Weather Station',
     description: 'A comprehensive IoT weather monitoring system built with Arduino, featuring real-time data collection, wireless transmission, and web-based dashboard visualization.',
-    image_url: 'https://picsum.photos/seed/weather-station/600/400',
+    image_url: 'https://projects.arduinocontent.cc/5d4ddea4-38b2-42e9-92f0-6b4f12da5e3c.JPG',
     discipline: 'Electrical Engineering',
     tags: ['arduino', 'iot', 'sensors', 'weather', 'electronics'],
     view_count: 1280,
@@ -58,7 +58,7 @@ const MOCK_PROJECTS = [
     slug: '3d-printed-robot-arm',
     title: '3D Printed Robot Arm',
     description: 'A 6-axis robotic arm designed for educational purposes, featuring 3D printed components, servo control, and Arduino-based motion planning with inverse kinematics.',
-    image_url: 'https://picsum.photos/seed/robot-arm/600/400',
+    image_url: 'https://web-objects.markforged.com/craft/common/_small/5be21a397a0067baae10a774_Screen_Shot_2018-11-06_at_3.19.06_PM.png',
     discipline: 'Mechanical Engineering',
     tags: ['robotics', '3d-printing', 'mechanical', 'automation', 'education'],
     view_count: 3420,
@@ -77,7 +77,7 @@ const MOCK_PROJECTS = [
     slug: 'iot-smart-home-controller',
     title: 'IoT Smart Home Controller',
     description: 'Complete smart home automation system with voice control, mobile app, and machine learning-based energy optimization. Supports 50+ device types.',
-    image_url: 'https://picsum.photos/seed/smart-home/600/400',
+    image_url: 'https://insidetelecom.com/wp-content/uploads/2022/10/smart-home-01-1024x576.jpg',
     discipline: 'Software Engineering',
     tags: ['iot', 'smart-home', 'automation', 'machine-learning', 'mobile'],
     view_count: 2150,
@@ -96,7 +96,7 @@ const MOCK_PROJECTS = [
     slug: 'custom-pcb-design-tool',
     title: 'Custom PCB Design Tool',
     description: 'Professional PCB design software with auto-routing, DRC checking, and 3D visualization. Supports multi-layer designs up to 16 layers with impedance control.',
-    image_url: 'https://picsum.photos/seed/pcb-tool/600/400',
+    image_url: 'https://www.cirexx.com/wp-content/uploads/PCB-Layout-Board-1024x455.jpg',
     discipline: 'Electrical Engineering',
     tags: ['pcb', 'electronics', 'cad', 'design-tools', 'hardware'],
     view_count: 4850,
@@ -115,7 +115,7 @@ const MOCK_PROJECTS = [
     slug: 'drone-flight-controller',
     title: 'Drone Flight Controller',
     description: 'Advanced flight controller firmware with GPS navigation, obstacle avoidance, and autonomous mission planning. Supports both multirotor and fixed-wing aircraft.',
-    image_url: 'https://picsum.photos/seed/drone-controller/600/400',
+    image_url: 'https://oscarliang.com/wp-content/uploads/2022/11/how-to-build-fpv-drone-2023-fc-stack-nuts.jpg',
     discipline: 'Software Engineering',
     tags: ['drone', 'flight-control', 'embedded', 'navigation', 'autonomous'],
     view_count: 2890,
@@ -134,7 +134,7 @@ const MOCK_PROJECTS = [
     slug: 'solar-panel-optimizer',
     title: 'Solar Panel Optimizer',
     description: 'MPPT solar charge controller with real-time optimization algorithms, battery management, and grid-tie capabilities. Increases efficiency by up to 30%.',
-    image_url: 'https://picsum.photos/seed/solar-optimizer/600/400',
+    image_url: 'https://blueandgreentomorrow.com/wp-content/uploads/2024/08/Depositphotos_5111838_XL-scaled.jpg',
     discipline: 'Electrical Engineering',
     tags: ['solar', 'renewable-energy', 'power-electronics', 'optimization', 'green-tech'],
     view_count: 1650,
@@ -153,7 +153,7 @@ const MOCK_PROJECTS = [
     slug: 'ai-powered-cad',
     title: 'AI-Powered CAD Assistant',
     description: 'Next-gen CAD tool with AI-driven design suggestions, real-time collaboration, and cloud rendering.',
-    image_url: 'https://picsum.photos/seed/ai-cad/600/400',
+    image_url: 'https://www.opencascade.com/wp-content/uploads/2020/09/CAD-Assistant2-650x366.jpg',
     discipline: 'Computer Engineering',
     tags: ['cad', 'ai', 'collaboration', 'cloud', 'design'],
     view_count: 980,
@@ -172,7 +172,7 @@ const MOCK_PROJECTS = [
     slug: 'biomedical-sensor',
     title: 'Wearable Biomedical Sensor',
     description: 'A flexible, skin-mounted sensor for continuous health monitoring, with Bluetooth connectivity and mobile app integration.',
-    image_url: 'https://picsum.photos/seed/biomed-sensor/600/400',
+    image_url: 'https://assets.palmsens.com/app/uploads/2023/11/Sensit-Wearable-on-arm.png.webp',
     discipline: 'Biomedical Engineering',
     tags: ['biomedical', 'sensor', 'wearable', 'health', 'bluetooth'],
     view_count: 720,
@@ -191,7 +191,7 @@ const MOCK_PROJECTS = [
     slug: 'green-building-automation',
     title: 'Green Building Automation',
     description: 'Smart building automation system for energy efficiency, integrating HVAC, lighting, and security with IoT sensors.',
-    image_url: 'https://picsum.photos/seed/green-building/600/400',
+    image_url: 'https://www.advancedcontrolcorp.com/wp-content/uploads/2022/09/green-building-automation-benefits.jpg',
     discipline: 'Civil Engineering',
     tags: ['green', 'building', 'automation', 'iot', 'energy'],
     view_count: 1340,
@@ -219,19 +219,72 @@ export default function ProjectsGallery() {
 
   useEffect(() => {
     fetchProjects();
-  }, [searchQuery]);
+  }, [searchQuery, selectedDiscipline, sortOption]);
 
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/projects?search=${searchQuery}`);
+      const params = new URLSearchParams();
+      if (searchQuery.trim()) params.append('search', searchQuery.trim());
+      if (selectedDiscipline !== 'All') params.append('discipline', selectedDiscipline);
+      if (sortOption !== 'Newest') {
+        const sortMap: Record<string, string> = {
+          'Most Liked': 'most_liked',
+          'Most Viewed': 'most_viewed',
+          'Newest': 'newest'
+        };
+        params.append('sort', sortMap[sortOption] || 'newest');
+      }
+      
+      const response = await fetch(`/api/projects?${params}`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
+      
+      // Handle both real database data and mock data structures
       if (Array.isArray(data) && data.length > 0) {
-        setProjects(data);
+        const processedData = data.map(project => {
+          // Ensure project is a valid object
+          if (!project || typeof project !== 'object') {
+            return null;
+          }
+          
+          return {
+            id: project.id || Math.random().toString(36),
+            slug: project.slug || project.id || Math.random().toString(36),
+            title: project.title || 'Untitled Project',
+            description: project.description || 'No description available',
+            image_url: project.image_url || null,
+            discipline: project.discipline || 'Other',
+            tags: Array.isArray(project.tags) ? project.tags : [],
+            view_count: Number(project.view_count) || 0,
+            like_count: Number(project.like_count) || 0,
+            download_count: Number(project.download_count) || 0,
+            created_at: project.created_at || new Date().toISOString(),
+            author: project.author || {
+              id: project.author_id || project.owner_id || 'unknown',
+              username: project.username || 'unknown',
+              handle: project.handle || project.username || 'unknown',
+              display_name: project.display_name || project.username || 'Unknown Author',
+              avatar_url: project.avatar_url || null,
+            }
+          };
+        }).filter(Boolean); // Remove any null entries
+        
+        setProjects(processedData);
       } else {
+        console.log('No projects received from API, using mock data');
         setProjects(MOCK_PROJECTS);
       }
     } catch (error) {
+      console.error('Error fetching projects:', error);
       setProjects(MOCK_PROJECTS);
     } finally {
       setLoading(false);
@@ -255,20 +308,44 @@ export default function ProjectsGallery() {
 
   // Filter and sort projects
   const filteredProjects = projects.filter((p) => {
-    const tagMatch = selectedTag ? p.tags?.includes(selectedTag) : true;
-    const disciplineMatch = selectedDiscipline === 'All' || (p.discipline || 'Other') === selectedDiscipline;
+    if (!p || typeof p !== 'object') return false;
+    
+    const tagMatch = selectedTag ? 
+      (Array.isArray(p.tags) && p.tags.includes(selectedTag)) : true;
+    const disciplineMatch = selectedDiscipline === 'All' || 
+      (p.discipline || 'Other') === selectedDiscipline;
+    
     return tagMatch && disciplineMatch;
   }).sort((a, b) => {
-    if (sortOption === 'Most Liked') return (b.like_count || 0) - (a.like_count || 0);
-    if (sortOption === 'Most Viewed') return (b.view_count || 0) - (a.view_count || 0);
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    if (!a || !b) return 0;
+    
+    if (sortOption === 'Most Liked') {
+      return (Number(b.like_count) || 0) - (Number(a.like_count) || 0);
+    }
+    if (sortOption === 'Most Viewed') {
+      return (Number(b.view_count) || 0) - (Number(a.view_count) || 0);
+    }
+    
+    // Default to newest first
+    try {
+      const dateA = new Date(a.created_at || 0).getTime();
+      const dateB = new Date(b.created_at || 0).getTime();
+      return dateB - dateA;
+    } catch (error) {
+      return 0;
+    }
   });
 
   // Group filtered projects by discipline
   const projectsByDiscipline = ENGINEERING_DISCIPLINES.reduce((acc, discipline) => {
-    acc[discipline] = filteredProjects.filter(
-      (p) => (p.discipline || 'Other').toLowerCase() === discipline.toLowerCase()
+    const projectsInDiscipline = filteredProjects.filter(
+      (p) => {
+        if (!p || typeof p !== 'object') return false;
+        const projectDiscipline = p.discipline || 'Other';
+        return projectDiscipline.toLowerCase() === discipline.toLowerCase();
+      }
     );
+    acc[discipline] = projectsInDiscipline;
     return acc;
   }, {} as Record<string, any[]>);
 
@@ -283,7 +360,7 @@ export default function ProjectsGallery() {
         <div className="absolute inset-0 bg-white/10 backdrop-blur-md" />
         <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
           <div className="flex items-center gap-4 mb-2">
-            <svg width="48" height="48" fill="none" viewBox="0 0 48 48"><circle cx="24" cy="24" r="24" fill="url(#paint0_linear)"/><path d="M24 12l8 16H16l8-16z" fill="#fff"/><defs><linearGradient id="paint0_linear" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse"><stop stop-color="#60A5FA"/><stop offset="1" stop-color="#A78BFA"/></linearGradient></defs></svg>
+            <svg width="48" height="48" fill="none" viewBox="0 0 48 48"><circle cx="24" cy="24" r="24" fill="url(#paint0_linear)"/><path d="M24 12l8 16H16l8-16z" fill="#fff"/><defs><linearGradient id="paint0_linear" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse"><stop stopColor="#60A5FA"/><stop offset="1" stopColor="#A78BFA"/></linearGradient></defs></svg>
             <h1 className="text-4xl md:text-5xl font-extrabold drop-shadow text-white">Project Gallery</h1>
           </div>
           <p className="text-lg text-blue-100/90 font-medium">Discover, share, and collaborate on cutting-edge engineering projects</p>

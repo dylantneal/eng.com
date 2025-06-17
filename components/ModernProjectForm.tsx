@@ -19,6 +19,9 @@ export default function ModernProjectForm({ userPlan, currentProjectCount, userH
     title: '',
     description: '',
     readme: '',
+    discipline: '',
+    license: 'MIT',
+    tags: [] as string[],
     isPublic: true,
     files: [] as File[]
   });
@@ -39,13 +42,26 @@ export default function ModernProjectForm({ userPlan, currentProjectCount, userH
       return;
     }
 
+    if (!formData.title.trim()) {
+      alert('Please enter a project title.');
+      return;
+    }
+
+    if (formData.files.length === 0) {
+      alert('Please upload at least one file.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const formDataObj = new FormData();
-      formDataObj.set('title', formData.title);
-      formDataObj.set('description', formData.description);
-      formDataObj.set('readme', formData.readme);
-      formDataObj.set('public', formData.isPublic ? 'true' : '');
+      formDataObj.set('title', formData.title.trim());
+      formDataObj.set('description', formData.description.trim());
+      formDataObj.set('readme', formData.readme.trim());
+      formDataObj.set('discipline', formData.discipline.trim());
+      formDataObj.set('license', formData.license);
+      formDataObj.set('tags', JSON.stringify(formData.tags));
+      formDataObj.set('public', formData.isPublic ? 'true' : 'false');
       
       formData.files.forEach(file => {
         formDataObj.append('files', file);
@@ -56,15 +72,21 @@ export default function ModernProjectForm({ userPlan, currentProjectCount, userH
         body: formDataObj
       });
 
-      if (response.ok) {
-        const { project } = await response.json();
-        router.push(`/projects/${project.slug}`);
+      const responseData = await response.json();
+
+      if (response.ok && responseData.success) {
+        // Show success message
+        alert(`✅ Project "${formData.title}" created successfully!`);
+        
+        // Redirect to the project page
+        router.push(`/projects/${responseData.project.slug}`);
       } else {
-        throw new Error('Failed to create project');
+        throw new Error(responseData.error || 'Failed to create project');
       }
     } catch (error) {
       console.error('Error creating project:', error);
-      alert('Failed to create project. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create project. Please try again.';
+      alert(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -85,7 +107,7 @@ export default function ModernProjectForm({ userPlan, currentProjectCount, userH
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                 placeholder="e.g., Autonomous Robot Arm, Custom PCB Design..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-500"
               />
             </div>
 
@@ -93,13 +115,85 @@ export default function ModernProjectForm({ userPlan, currentProjectCount, userH
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Short Description
               </label>
-              <input
-                type="text"
+              <textarea
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 placeholder="Brief description of your project (optional)"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-500"
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Engineering Discipline
+                </label>
+                <select
+                  value={formData.discipline}
+                  onChange={(e) => setFormData(prev => ({ ...prev, discipline: e.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                >
+                  <option value="">Select discipline (optional)</option>
+                  <option value="Aerospace Engineering">Aerospace Engineering</option>
+                  <option value="Biomedical Engineering">Biomedical Engineering</option>
+                  <option value="Chemical Engineering">Chemical Engineering</option>
+                  <option value="Civil Engineering">Civil Engineering</option>
+                  <option value="Computer Engineering">Computer Engineering</option>
+                  <option value="Electrical Engineering">Electrical Engineering</option>
+                  <option value="Environmental Engineering">Environmental Engineering</option>
+                  <option value="Industrial Engineering">Industrial Engineering</option>
+                  <option value="Materials Science Engineering">Materials Science Engineering</option>
+                  <option value="Mechanical Engineering">Mechanical Engineering</option>
+                  <option value="Nuclear Engineering">Nuclear Engineering</option>
+                  <option value="Petroleum Engineering">Petroleum Engineering</option>
+                  <option value="Software Engineering">Software Engineering</option>
+                  <option value="Systems Engineering">Systems Engineering</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  License
+                </label>
+                <select
+                  value={formData.license}
+                  onChange={(e) => setFormData(prev => ({ ...prev, license: e.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                >
+                  <option value="MIT">MIT License</option>
+                  <option value="Apache-2.0">Apache License 2.0</option>
+                  <option value="GPL-3.0">GNU General Public License v3.0</option>
+                  <option value="BSD-3-Clause">BSD 3-Clause License</option>
+                  <option value="Creative Commons">Creative Commons</option>
+                  <option value="Proprietary">Proprietary</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tags
+              </label>
+              <input
+                type="text"
+                value={formData.tags.join(', ')}
+                onChange={(e) => {
+                  const tags = e.target.value
+                    .split(',')
+                    .map(tag => tag.trim())
+                    .filter(tag => tag.length > 0)
+                    .slice(0, 10); // Limit to 10 tags
+                  setFormData(prev => ({ ...prev, tags }));
+                }}
+                placeholder="e.g., arduino, iot, sensors, robotics (comma-separated)"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-500"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Add up to 10 tags separated by commas to help others discover your project
+              </p>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -162,6 +256,34 @@ export default function ModernProjectForm({ userPlan, currentProjectCount, userH
                   <div>
                     <span className="text-sm font-medium text-gray-500">Description:</span>
                     <p className="text-gray-900">{formData.description}</p>
+                  </div>
+                )}
+
+                {formData.discipline && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">Discipline:</span>
+                    <p className="text-gray-900">{formData.discipline}</p>
+                  </div>
+                )}
+
+                <div>
+                  <span className="text-sm font-medium text-gray-500">License:</span>
+                  <p className="text-gray-900">{formData.license}</p>
+                </div>
+
+                {formData.tags.length > 0 && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">Tags:</span>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {formData.tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
 

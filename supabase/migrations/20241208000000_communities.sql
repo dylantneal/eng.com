@@ -29,7 +29,7 @@ create table if not exists community_memberships (
 create table if not exists posts (
   id uuid primary key default uuid_generate_v4(),
   community_id uuid references communities on delete cascade,
-  author_id uuid references auth.users on delete cascade,
+  user_id uuid references auth.users on delete cascade,
   title text not null,
   body text,
   post_type text default 'discussion' check (post_type in ('question', 'discussion', 'show_and_tell', 'help', 'news')),
@@ -51,6 +51,9 @@ create table if not exists posts (
   attachments jsonb default '[]'::jsonb -- CAD files, schematics, etc.
 );
 
+-- Add score column if it doesn't exist (for existing posts tables)
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS score real DEFAULT 0;
+
 -- Votes on posts
 create table if not exists post_votes (
   id uuid primary key default uuid_generate_v4(),
@@ -66,7 +69,7 @@ create table if not exists post_comments (
   id uuid primary key default uuid_generate_v4(),
   post_id uuid references posts on delete cascade,
   parent_comment_id uuid references post_comments on delete cascade, -- for threading
-  author_id uuid references auth.users on delete cascade,
+  user_id uuid references auth.users on delete cascade,
   body text not null,
   upvotes integer default 0,
   downvotes integer default 0,
@@ -119,10 +122,10 @@ create table if not exists post_reports (
   created_at timestamptz default now()
 );
 
--- Indexes for performance
+-- Indexes for performance (now safe to create after ensuring score column exists)
 create index if not exists idx_posts_community_score on posts(community_id, score desc, created_at desc);
 create index if not exists idx_posts_community_created on posts(community_id, created_at desc);
-create index if not exists idx_posts_author on posts(author_id, created_at desc);
+create index if not exists idx_posts_user on posts(user_id, created_at desc);
 create index if not exists idx_post_comments_post on post_comments(post_id, created_at asc);
 create index if not exists idx_post_comments_parent on post_comments(parent_comment_id, created_at asc);
 create index if not exists idx_community_memberships_user on community_memberships(user_id);
@@ -138,36 +141,77 @@ alter table user_reputation enable row level security;
 alter table saved_posts enable row level security;
 alter table post_reports enable row level security;
 
--- Communities are publicly readable
-create policy "Communities are publicly readable" on communities for select using (true);
+-- Create policies only if they don't already exist
+DO $$
+BEGIN
+    -- Communities are publicly readable
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'communities' AND policyname = 'Communities are publicly readable') THEN
+        CREATE POLICY "Communities are publicly readable" ON communities FOR SELECT USING (true);
+    END IF;
 
--- Community memberships
-create policy "Community memberships are readable by members" on community_memberships for select using (true);
-create policy "Users can manage their own memberships" on community_memberships for all using (auth.uid() = user_id);
+    -- Community memberships
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'community_memberships' AND policyname = 'Community memberships are readable by members') THEN
+        CREATE POLICY "Community memberships are readable by members" ON community_memberships FOR SELECT USING (true);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'community_memberships' AND policyname = 'Users can manage their own memberships') THEN
+        CREATE POLICY "Users can manage their own memberships" ON community_memberships FOR ALL USING (auth.uid() = user_id);
+    END IF;
 
--- Posts policies
-create policy "Posts are publicly readable" on posts for select using (not is_removed);
-create policy "Users can create posts" on posts for insert with check (auth.uid() = author_id);
-create policy "Authors can update their posts" on posts for update using (auth.uid() = author_id);
+    -- Posts policies
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'posts' AND policyname = 'Posts are publicly readable') THEN
+        CREATE POLICY "Posts are publicly readable" ON posts FOR SELECT USING (NOT is_removed);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'posts' AND policyname = 'Users can create posts') THEN
+        CREATE POLICY "Users can create posts" ON posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'posts' AND policyname = 'Authors can update their posts') THEN
+        CREATE POLICY "Authors can update their posts" ON posts FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
--- Vote policies
-create policy "Users can vote on posts" on post_votes for all using (auth.uid() = user_id);
-create policy "Users can vote on comments" on comment_votes for all using (auth.uid() = user_id);
+    -- Vote policies
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'post_votes' AND policyname = 'Users can vote on posts') THEN
+        CREATE POLICY "Users can vote on posts" ON post_votes FOR ALL USING (auth.uid() = user_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'comment_votes' AND policyname = 'Users can vote on comments') THEN
+        CREATE POLICY "Users can vote on comments" ON comment_votes FOR ALL USING (auth.uid() = user_id);
+    END IF;
 
--- Comment policies
-create policy "Comments are publicly readable" on post_comments for select using (not is_removed);
-create policy "Users can create comments" on post_comments for insert with check (auth.uid() = author_id);
-create policy "Authors can update their comments" on post_comments for update using (auth.uid() = author_id);
+    -- Comment policies
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'post_comments' AND policyname = 'Comments are publicly readable') THEN
+        CREATE POLICY "Comments are publicly readable" ON post_comments FOR SELECT USING (NOT is_removed);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'post_comments' AND policyname = 'Users can create comments') THEN
+        CREATE POLICY "Users can create comments" ON post_comments FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'post_comments' AND policyname = 'Authors can update their comments') THEN
+        CREATE POLICY "Authors can update their comments" ON post_comments FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
--- Reputation is publicly readable
-create policy "User reputation is publicly readable" on user_reputation for select using (true);
-create policy "Users can update their own reputation" on user_reputation for all using (auth.uid() = user_id);
+    -- Reputation is publicly readable
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'user_reputation' AND policyname = 'User reputation is publicly readable') THEN
+        CREATE POLICY "User reputation is publicly readable" ON user_reputation FOR SELECT USING (true);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'user_reputation' AND policyname = 'Users can update their own reputation') THEN
+        CREATE POLICY "Users can update their own reputation" ON user_reputation FOR ALL USING (auth.uid() = user_id);
+    END IF;
 
--- Saved posts
-create policy "Users can manage their saved posts" on saved_posts for all using (auth.uid() = user_id);
+    -- Saved posts
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'saved_posts' AND policyname = 'Users can manage their saved posts') THEN
+        CREATE POLICY "Users can manage their saved posts" ON saved_posts FOR ALL USING (auth.uid() = user_id);
+    END IF;
 
--- Reports
-create policy "Users can create reports" on post_reports for insert with check (auth.uid() = reporter_id);
+    -- Reports
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'post_reports' AND policyname = 'Users can create reports') THEN
+        CREATE POLICY "Users can create reports" ON post_reports FOR INSERT WITH CHECK (auth.uid() = reporter_id);
+    END IF;
+END $$;
 
 -- Functions for maintaining counts and scores
 create or replace function update_post_score()
@@ -252,16 +296,16 @@ create trigger update_comment_vote_counts_trigger
   after insert or update or delete on comment_votes
   for each row execute function update_comment_vote_counts();
 
--- Insert default engineering communities
-insert into communities (name, display_name, description, color, is_official) values
-  ('mechanical-engineering', 'Mechanical Engineering', 'Design, manufacturing, CAD, and everything mechanical', '#E11D48', true),
-  ('electronics', 'Electronics & PCB Design', 'Circuit design, PCBs, embedded systems, and electronic components', '#7C3AED', true),
-  ('robotics', 'Robotics', 'Robots, automation, control systems, and mechatronics', '#059669', true),
-  ('software', 'Engineering Software', 'CAD software, simulation tools, programming for engineers', '#DC2626', true),
-  ('materials', 'Materials Science', 'Material selection, testing, and engineering properties', '#EA580C', true),
-  ('manufacturing', 'Manufacturing', '3D printing, CNC, injection molding, and production', '#0891B2', true),
-  ('beginner', 'Beginner Questions', 'New to engineering? Ask your questions here!', '#8B5CF6', true),
-  ('show-and-tell', 'Show and Tell', 'Share your projects, prototypes, and achievements', '#10B981', true),
-  ('career', 'Engineering Careers', 'Job advice, career paths, and professional development', '#F59E0B', true),
-  ('general', 'General Discussion', 'Everything else engineering-related', '#6B7280', true)
+-- Insert default engineering communities (only if they don't exist)
+insert into communities (name, display_name, description, color) values
+  ('mechanical-engineering', 'Mechanical Engineering', 'Design, manufacturing, CAD, and everything mechanical', '#E11D48'),
+  ('electronics', 'Electronics & PCB Design', 'Circuit design, PCBs, embedded systems, and electronic components', '#7C3AED'),
+  ('robotics', 'Robotics', 'Robots, automation, control systems, and mechatronics', '#059669'),
+  ('software', 'Engineering Software', 'CAD software, simulation tools, programming for engineers', '#DC2626'),
+  ('materials', 'Materials Science', 'Material selection, testing, and engineering properties', '#EA580C'),
+  ('manufacturing', 'Manufacturing', '3D printing, CNC, injection molding, and production', '#0891B2'),
+  ('beginner', 'Beginner Questions', 'New to engineering? Ask your questions here!', '#8B5CF6'),
+  ('show-and-tell', 'Show and Tell', 'Share your projects, prototypes, and achievements', '#10B981'),
+  ('career', 'Engineering Careers', 'Job advice, career paths, and professional development', '#F59E0B'),
+  ('general', 'General Discussion', 'Everything else engineering-related', '#6B7280')
 on conflict (name) do nothing; 

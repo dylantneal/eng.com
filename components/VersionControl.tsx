@@ -9,7 +9,9 @@ type Version = {
   version_no: number;
   created_at: string;
   readme_md: string | null;
-  files: any;
+  file_count: number;
+  total_size: number;
+  has_files: boolean;
 };
 
 interface VersionControlProps {
@@ -34,15 +36,13 @@ export default function VersionControl({ projectId, canEdit }: VersionControlPro
 
   const loadVersionHistory = async () => {
     try {
-      const { data, error } = await supabase
-        .from('project_versions')
-        .select('id, version_no, created_at, readme_md, files')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-      setVersions(data || []);
+      const response = await fetch(`/api/projects/${projectId}/versions`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch version history');
+      }
+      
+      const data = await response.json();
+      setVersions(data.versions || []);
     } catch (error) {
       console.error('Error loading version history:', error);
     } finally {
@@ -54,24 +54,37 @@ export default function VersionControl({ projectId, canEdit }: VersionControlPro
     if (!commitMessage.trim() || !canEdit) return;
 
     try {
-      const { data, error } = await supabase
-        .from('project_versions')
-        .insert({
-          project_id: projectId,
-          version_no: (versions[0]?.version_no || 0) + 1,
-          readme_md: commitMessage,
-          files: {}
-        })
-        .select()
-        .single();
+      const formData = new FormData();
+      formData.set('changelog', commitMessage.trim());
+      formData.set('readme_md', commitMessage.trim());
+      
+      // For now, we'll require at least a dummy file since the API requires files
+      // In a real implementation, this would be handled through a proper file upload flow
+      const dummyFile = new File(['# Version Update\n\n' + commitMessage], 'changelog.md', {
+        type: 'text/markdown'
+      });
+      formData.append('files', dummyFile);
 
-      if (error) throw error;
+      const response = await fetch(`/api/projects/${projectId}/versions`, {
+        method: 'POST',
+        body: formData
+      });
 
-      setVersions(prev => [data, ...prev]);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create version');
+      }
+
+      const result = await response.json();
+      
+      // Reload version history to show the new version
+      await loadVersionHistory();
+      
       setCommitMessage('');
       setShowCommitModal(false);
     } catch (error) {
-      console.error('Error creating commit:', error);
+      console.error('Error creating version:', error);
+      alert(error instanceof Error ? error.message : 'Failed to create version');
     }
   };
 
@@ -123,7 +136,7 @@ export default function VersionControl({ projectId, canEdit }: VersionControlPro
       <div className="p-6">
         <div className="space-y-4">
           {versions.map((version) => (
-            <div key={version.id} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50">
+            <div key={version.id} className="flex items-start gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
               <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                   <GitCommit className="w-4 h-4 text-blue-600" />
@@ -131,18 +144,41 @@ export default function VersionControl({ projectId, canEdit }: VersionControlPro
               </div>
               
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-medium text-gray-900">
-                    v{version.version_no}
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-sm font-semibold text-gray-900">
+                    Version {version.version_no}
                   </span>
                   <span className="text-xs text-gray-500">
                     {formatDate(version.created_at)}
                   </span>
+                  {version.file_count && (
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                      {version.file_count} files
+                    </span>
+                  )}
                 </div>
                 
-                <p className="text-sm text-gray-600">
-                  {version.readme_md || 'No commit message'}
+                <p className="text-sm text-gray-600 mb-2">
+                  {version.readme_md || 'No description available'}
                 </p>
+                
+                {version.has_files && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => window.open(`/api/projects/${projectId}/download?version=${version.version_no}`, '_blank')}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      View Files
+                    </button>
+                    <span className="text-xs text-gray-400">•</span>
+                    <button
+                      onClick={() => window.open(`/api/projects/${projectId}/download?version=${version.version_no}`, '_blank')}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Download
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

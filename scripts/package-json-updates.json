@@ -1,0 +1,30 @@
+{
+  "devDependencies": {
+    "prisma": "^5.7.1"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.7.1",
+    "@prisma/extension-accelerate": "^1.0.0",
+    "@supabase/supabase-js": "^2.38.5"
+  },
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:pull": "prisma db pull",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:reset": "prisma migrate reset",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate",
+    "type-check": "tsc --noEmit",
+    "migration:run": "node scripts/migrate-to-gcloud.js",
+    "migration:verify": "node -e \"const {testDatabaseConnection} = require('./lib/database'); testDatabaseConnection().then(console.log);\"",
+    "test:migration": "jest --testPathPattern=migration",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:e2e": "playwright test",
+    "test:performance": "jest --testPathPattern=performance"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+} 
