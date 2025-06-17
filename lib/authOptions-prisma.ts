@@ -170,7 +170,8 @@ export const authOptions: AuthOptions = {
               email: user.email,
               username: user.email.split('@')[0],
               handle: user.email.split('@')[0],
-              displayName: user.name ?? user.email.split('@')[0],
+              displayName: user.name || user.email.split('@')[0],
+                             avatarUrl: user.image || undefined,
             }
           });
         }

@@ -1,39 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase-server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
+import { prisma } from '@/lib/prisma';
 
-export async function POST(req: NextRequest) {
-  const { targetId } = await req.json();
-  const supabase     = createClient();
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'auth' }, { status: 401 });
+    const { followeeId } = await request.json();
 
-  const { error } = await supabase.from('follows').insert({
-    follower_id:  user.id,
-    following_id: targetId,
-  });
+    if (!followeeId) {
+      return NextResponse.json({ error: 'followeeId is required' }, { status: 400 });
+    }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+    if (followeeId === session.user.id) {
+      return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 });
+    }
+
+    // Check if already following
+    const existingFollow = await prisma.userFollow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: session.user.id,
+          followingId: followeeId,
+        },
+      },
+    });
+
+    if (existingFollow) {
+      // Unfollow
+      await prisma.userFollow.delete({
+        where: {
+          followerId_followingId: {
+            followerId: session.user.id,
+            followingId: followeeId,
+          },
+        },
+      });
+
+      // Update follower/following counts
+      await Promise.all([
+        prisma.profile.update({
+          where: { id: session.user.id },
+          data: { followingCount: { decrement: 1 } },
+        }),
+        prisma.profile.update({
+          where: { id: followeeId },
+          data: { followerCount: { decrement: 1 } },
+        }),
+      ]);
+
+      return NextResponse.json({ following: false });
+    } else {
+      // Follow
+      await prisma.userFollow.create({
+        data: {
+          followerId: session.user.id,
+          followingId: followeeId,
+        },
+      });
+
+      // Update follower/following counts
+      await Promise.all([
+        prisma.profile.update({
+          where: { id: session.user.id },
+          data: { followingCount: { increment: 1 } },
+        }),
+        prisma.profile.update({
+          where: { id: followeeId },
+          data: { followerCount: { increment: 1 } },
+        }),
+      ]);
+
+      return NextResponse.json({ following: true });
+    }
+  } catch (error) {
+    console.error('Follow toggle error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
-export async function DELETE(req: NextRequest) {
-  const { targetId } = await req.json();
-  const supabase     = createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'auth' }, { status: 401 });
-
-  const { error } = await supabase
-    .from('follows')
-    .delete()
-    .eq('follower_id', user.id)
-    .eq('following_id', targetId);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
-} 
+// Follow/unfollow is now handled by the POST method above 

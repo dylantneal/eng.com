@@ -6,26 +6,18 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { withAccelerate } from '@prisma/extension-accelerate';
 
 // Global Prisma instance for Next.js hot reload compatibility
 declare global {
   var __prisma: PrismaClient | undefined;
 }
 
-// Create Prisma client with optimizations
+// Create Prisma client
 const createPrismaClient = () => {
-  const client = new PrismaClient({
+  return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
     errorFormat: 'pretty',
   });
-
-  // Add Prisma Accelerate if URL provided
-  if (process.env.PRISMA_ACCELERATE_URL) {
-    return client.$extends(withAccelerate());
-  }
-
-  return client;
 };
 
 // Singleton pattern for Prisma client

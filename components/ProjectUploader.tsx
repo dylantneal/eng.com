@@ -6,7 +6,8 @@ import { useDropzone } from 'react-dropzone';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import DOMPurify from 'dompurify';                 // sanitise preview
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { projectsStorage } from '@/lib/storage';
+import { prisma } from '@/lib/prisma';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
@@ -45,59 +46,71 @@ export default function ProjectUploader() {
   /* ----------  submit ------------------------------------------ */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!session) return;
+    if (!session?.user?.id) return;
     if (!files.length) return setError('Please attach at least one file');
 
     setLoading(true);
-    const supabase = supabaseBrowser;
 
-    // slugify title & ensure uniqueness
-    const base = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    let slug   = `${base}-${uuid().slice(0, 6)}`;
+    try {
+      // slugify title & ensure uniqueness
+      const base = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      let slug = `${base}-${uuid().slice(0, 6)}`;
 
-    const { data: existing } = await supabase
-      .from('projects')
-      .select('id')
-      .eq('slug', slug)
-      .maybeSingle();
+      const existing = await prisma.project.findFirst({
+        where: { slug },
+        select: { id: true }
+      });
 
-    if (existing) slug = `${base}-${uuid().slice(0, 8)}`;
+      if (existing) slug = `${base}-${uuid().slice(0, 8)}`;
 
-    /* 1 ─ create project row */
-    const { data: project, error: insertErr } = await supabase
-      .from('projects')
-      .insert({
-        owner_id: session.user.id,
-        title,
-        slug,
-        is_public: isPublic,
-      })
-      .select()
-      .single();
+      /* 1 ─ create project row */
+      const project = await prisma.project.create({
+        data: {
+          ownerId: session.user.id,
+          title,
+          slug,
+          isPublic,
+          readme,
+        }
+      });
 
-    if (insertErr || !project) {
-      setError(insertErr?.message ?? 'Could not create project');
+      /* 2 ─ upload files to storage */
+      const uploadPromises = files.map(async (file) => {
+        const bucketName = isPublic ? 'eng-platform-projects' : 'eng-platform-projects-private';
+        const storage = projectsStorage; // Use public storage for now
+        const filePath = `${project.id}/${file.name}`;
+        
+        return storage.upload(filePath, file, { 
+          cacheControl: 'public, max-age=3600',
+          contentType: file.type 
+        });
+      });
+
+      const uploadResults = await Promise.all(uploadPromises);
+      
+      // Check for upload errors
+      const uploadErrors = uploadResults.filter((result: any) => result.error);
+      if (uploadErrors.length > 0) {
+        throw new Error('Failed to upload some files');
+      }
+
+      /* 3 ─ initial version */
+      await prisma.projectVersion.create({
+        data: {
+          projectId: project.id,
+          versionNo: 1,
+          readmeMd: readme,
+          files: files.map((f) => ({ name: f.name, size: f.size, type: f.type })),
+        }
+      });
+
+      router.push(`/projects/${project.id}/${project.slug}`);
+    } catch (error) {
+      console.error('Project creation error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to create project');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    /* 2 ─ upload files to storage */
-    await Promise.all(
-      files.map((file) =>
-        supabase.storage
-          .from(isPublic ? 'projects' : 'projects-private')
-          .upload(`${project.id}/${file.name}`, file, { cacheControl: '3600' }),
-      ),
-    );
-
-    /* 3 ─ initial version */
-    await supabase.from('project_versions').insert({
-      project_id: project.id,
-      readme,
-      files: files.map((f) => ({ name: f.name, size: f.size, type: f.type })),
-    });
-
-    router.push(`/projects/${project.slug}`);
   }
 
   /* ----------  UI  --------------------------------------------- */

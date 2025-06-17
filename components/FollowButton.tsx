@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Button from '@/components/ui/Button';
-import { supabaseBrowser } from '@/lib/supabase/client';
+// API routes handle database operations
 
 export default function FollowButton({ followeeId }: { followeeId: string }) {
   const { data: session } = useSession();
@@ -10,13 +10,16 @@ export default function FollowButton({ followeeId }: { followeeId: string }) {
 
   /* initial state */
   useEffect(() => {
-    if (!session) return; // not signed-in
-    supabaseBrowser
-      .from('follows')
-      .select('id', { count: 'exact', head: true })
-      .eq('follower_id', session.user.id)
-      .eq('followee_id', followeeId)
-      .then(({ count }) => setFollowing(Boolean(count)));
+    if (!session?.user?.id) return; // not signed-in
+    
+    // Check if already following
+    fetch(`/api/follow/status?followeeId=${followeeId}`)
+      .then(res => res.json())
+      .then(data => setFollowing(data.following))
+      .catch(err => {
+        console.error('Error checking follow status:', err);
+        setFollowing(false);
+      });
   }, [session, followeeId]);
 
   if (!session || following === null) return null; // hide for anon / while loading
